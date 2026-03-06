@@ -8,6 +8,9 @@ import type {
   SubscriptionResult,
   SubscriptionsResult,
   SubscriptionStatus,
+  FreemiusPayment,
+  PaymentResult,
+  PaymentsResult,
 } from "../../types.ts";
 
 /**
@@ -232,6 +235,99 @@ export class FreemiusService {
     }
   }
 
+  // ─── Payment Queries ────────────────────────────────────────────────────────────
+
+  /**
+   * Fetches payments for a given user ID, subscription ID, or product ID.
+   */
+  async getPayments(
+    params: { userId?: string; subscriptionId?: string; productId?: string }
+  ): Promise<PaymentsResult> {
+    try {
+      const pluginId = params.productId ?? this.storeId;
+      const auth = this.buildAuthHeader();
+
+      const qs = new URLSearchParams();
+      if (params.userId) qs.set("user_id", params.userId);
+      if (params.subscriptionId) qs.set("subscription_id", params.subscriptionId);
+
+      const url = `${this.apiBase}/products/${pluginId}/payments.json${qs.size ? "?" + qs.toString() : ""}`;
+
+      const res = await fetch(url, { headers: { Authorization: auth } });
+
+      if (!res.ok) {
+        const body = await res.text();
+        console.error("[FreemiusService] Payments API error:", res.status, body);
+        return { payments: [], total: 0 };
+      }
+
+      const data = await res.json() as { payments?: FreemiusPayment[] };
+      const payments = (data.payments ?? []).map(p => this.buildPaymentResult(p));
+
+      return { payments, total: payments.length };
+    } catch (err) {
+      console.error("[FreemiusService] getPayments error:", err);
+      return { payments: [], total: 0 };
+    }
+  }
+
+  /**
+   * Fetches a single payment by its ID.
+   */
+  async getPaymentById(
+    paymentId: string,
+    productId?: string
+  ): Promise<PaymentResult | null> {
+    try {
+      const pluginId = productId ?? this.storeId;
+      const auth = this.buildAuthHeader();
+
+      const url = `${this.apiBase}/products/${pluginId}/payments/${paymentId}.json`;
+      const res = await fetch(url, { headers: { Authorization: auth } });
+
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        const body = await res.text();
+        console.error("[FreemiusService] Single Payment API error:", res.status, body);
+        return null;
+      }
+
+      const raw = await res.json() as FreemiusPayment;
+      return this.buildPaymentResult(raw);
+    } catch (err) {
+      console.error("[FreemiusService] getPaymentById error:", err);
+      return null;
+    }
+  }
+
+  /**
+   * Fetches the raw PDF invoice for a given payment.
+   */
+  async getInvoicePdf(
+    paymentId: string,
+    productId?: string
+  ): Promise<ArrayBuffer | null> {
+    try {
+      const pluginId = productId ?? this.storeId;
+      const auth = this.buildAuthHeader();
+
+      const url = `${this.apiBase}/products/${pluginId}/payments/${paymentId}/invoice.pdf`;
+      const res = await fetch(url, { headers: { Authorization: auth } });
+
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        const body = await res.text();
+        console.error("[FreemiusService] Invoice PDF API error:", res.status, body);
+        return null;
+      }
+
+      return await res.arrayBuffer();
+    } catch (err) {
+      console.error("[FreemiusService] getInvoicePdf error:", err);
+      return null;
+    }
+  }
+
   // ─── Webhook Forwarding ───────────────────────────────────────────────────────
 
   /**
@@ -291,9 +387,9 @@ export class FreemiusService {
   ): SubscriptionResult {
     const cycleLabel =
       s.billing_cycle === 0 ? "lifetime"
-      : s.billing_cycle === 1 ? "monthly"
-      : s.billing_cycle === 12 ? "annual"
-      : `${s.billing_cycle} months`;
+        : s.billing_cycle === 1 ? "monthly"
+          : s.billing_cycle === 12 ? "annual"
+            : `${s.billing_cycle} months`;
 
     return {
       id: s.id,
@@ -307,6 +403,25 @@ export class FreemiusService {
       status: this.deriveStatus(s),
       is_cancelled: s.is_cancelled,
       next_payment: s.next_payment,
+    };
+  }
+
+  /**
+   * Builds a PaymentResult from a raw FreemiusPayment.
+   */
+  private buildPaymentResult(p: FreemiusPayment): PaymentResult {
+    return {
+      id: p.id,
+      user_id: p.user_id,
+      subscription_id: p.subscription_id,
+      plan_id: p.plan_id,
+      license_id: p.license_id,
+      amount: p.amount,
+      gross: p.gross,
+      tax: p.tax,
+      currency: p.currency,
+      created: p.created,
+      is_refunded: p.is_refunded,
     };
   }
 

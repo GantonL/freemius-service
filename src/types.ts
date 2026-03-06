@@ -49,6 +49,41 @@ export interface FreemiusSubscription {
 
 // ─── Webhook ──────────────────────────────────────────────────────────────────
 
+export interface FreemiusPayment {
+  id: number;
+  plugin_id: number;
+  user_id: number;
+  subscription_id: number;
+  plan_id: number;
+  license_id: number | null;
+  amount: number;
+  gross: number;
+  tax: number;
+  currency: string;
+  created: string;
+  is_refunded: boolean;
+}
+
+export interface PaymentResult {
+  id: number;
+  user_id: number;
+  subscription_id: number;
+  plan_id: number;
+  license_id: number | null;
+  amount: number;
+  gross: number;
+  tax: number;
+  currency: string;
+  created: string;
+  is_refunded: boolean;
+}
+
+export interface PaymentsResult {
+  payments: PaymentResult[];
+  total: number;
+}
+
+
 export type FreemiusWebhookType =
   | "install.installed"
   | "install.updated"
