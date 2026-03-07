@@ -8,6 +8,8 @@
         "emitDecoratorMetadata": true
     },
     "imports": {
-        "@danet/core": "jsr:@danet/core@^2.9.6"
+        "@danet/core": "jsr:@danet/core@^2.9.6",
+        "@freemius/sdk": "npm:@freemius/sdk@^1.0.5",
+        "zod": "npm:zod@^3.23.8"
     }
 }
