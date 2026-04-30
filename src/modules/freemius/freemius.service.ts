@@ -1,96 +1,69 @@
 import { Injectable } from "@danet/core";
 import { config } from "../../config.ts";
 import type {
-  LicenseValidationResult,
-  FreemiusWebhookEvent,
-  FreemiusSubscription,
+  FreemiusPayment,
   FreemiusPlan,
+  FreemiusSubscription,
+  FreemiusWebhookEvent,
+  LicenseValidationResult,
+  PaymentResult,
+  PaymentsResult,
   SubscriptionResult,
   SubscriptionsResult,
   SubscriptionStatus,
-  FreemiusPayment,
-  PaymentResult,
-  PaymentsResult,
 } from "../../types.ts";
-import { Freemius } from "@freemius/sdk";
+import { FreemiusClient } from "./freemius.client.ts";
 
 /**
  * Core Freemius service.
- * Handles API communication, HMAC signature verification, and license validation.
+ * Handles API communication using direct REST calls with Bearer Token,
+ * and handles Webhook HMAC-SHA256 signature verification manually.
  */
 @Injectable()
 export class FreemiusService {
-  private readonly storeId = config.freemius.storeId;
-  private readonly freemius: Freemius;
-
-  constructor() {
-    this.freemius = new Freemius({
-      productId: Number(this.storeId),
-      publicKey: config.freemius.publicKey,
-      secretKey: config.freemius.secretKey,
-      apiKey: config.freemius.publicKey, // We map apiKey to publicKey if no distinct apiKey is provided
-    });
-  }
+  constructor(private readonly client: FreemiusClient) {}
 
   /**
-   * Returns a Freemius SDK instance. If a custom productId is provided,
-   * it instantiates a temporary client for that product ID using the same keys.
+   * Helper to resolve the correct product ID to use (from params or config fallback)
    */
-  private getSDK(productId?: string): Freemius {
-    if (!productId || productId === this.storeId) {
-      return this.freemius;
-    }
-    return new Freemius({
-      productId: Number(productId),
-      publicKey: config.freemius.publicKey,
-      secretKey: config.freemius.secretKey,
-      apiKey: config.freemius.publicKey,
-    });
+  private getProductId(productId?: string): string {
+    return productId || config.freemius.productId;
   }
 
   // ─── Webhook Verification ───────────────────────────────────────────────────
 
   /**
-   * Returns a configured webhook listener from the SDK.
-   */
-  getWebhookListener() {
-    return this.getSDK().webhook.createListener();
-  }
-
-  /**
    * Verifies an incoming Freemius webhook.
-   * Uses the official SDK's built-in fetch request processor.
+   * Delegates signature verification to the client.
    */
-  async processWebhookRequest(req: Request) {
-    try {
-      const sdk = this.getSDK();
-      const listener = sdk.webhook.createListener();
-
-      const event = await sdk.webhook.processFetch(listener, req);
-      return event;
-    } catch (err) {
-      console.error("[FreemiusService] Webhook processing failed:", err);
-      return null;
-    }
+  processWebhookRequest(
+    rawBody: string,
+    signatureHeader: string | null,
+  ): FreemiusWebhookEvent | null {
+    return this.client.verifyWebhookSignature(rawBody, signatureHeader);
   }
 
   // ─── License Validation ─────────────────────────────────────────────────────
 
   /**
    * Validates a license key against the Freemius API.
-   * Returns structured validation result.
    */
   async validateLicense(
     licenseKey: string,
-    productId?: string
+    productId?: string,
   ): Promise<LicenseValidationResult> {
     try {
-      const sdk = this.getSDK(productId);
+      const pId = this.getProductId(productId);
+      this.client.validateContext({ productId: pId });
 
-      const licenses = await sdk.api.license.list({ search: licenseKey });
+      const response = await this.client.get<{ licenses?: any[] }>(
+        `/products/${pId}/licenses.json`,
+        { search: licenseKey },
+      );
+      const licenses = response.licenses || [];
 
-      const license = (licenses || []).find(
-        (l: any) => l.secret_key === licenseKey
+      const license = licenses.find(
+        (l: any) => l.secret_key === licenseKey,
       );
 
       if (!license) {
@@ -120,8 +93,11 @@ export class FreemiusService {
         activated: license.activated as number,
         message: "License is valid.",
       };
-    } catch (err) {
-      console.error("[FreemiusService] validateLicense error:", err);
+    } catch (err: any) {
+      console.error(
+        "[FreemiusService] validateLicense error:",
+        err.message || err,
+      );
       return {
         valid: false,
         message: "An error occurred while validating the license.",
@@ -131,88 +107,99 @@ export class FreemiusService {
 
   // ─── Subscription Queries ───────────────────────────────────────────────────────
 
-  /**
-   * Fetches subscriptions for a given user ID or license key.
-   * At least one of the two must be provided.
-   * Enriches each subscription with a derived `status` and `billing_cycle_label`.
-   */
   async getSubscriptions(
-    params: { userId?: string; licenseKey?: string; productId?: string }
+    params: { userId?: string; licenseKey?: string; productId?: string },
   ): Promise<SubscriptionsResult> {
     try {
-      const sdk = this.getSDK(params.productId);
+      const pId = this.getProductId(params.productId);
+      this.client.validateContext({ productId: pId });
 
       const qs: Record<string, string> = {};
       if (params.userId) qs.user_id = params.userId;
       if (params.licenseKey) qs.license_key = params.licenseKey;
 
-      const [subscriptions, plans] = await Promise.all([
-        sdk.api.subscription.list(qs),
-        sdk.api.plan.list()
+      const [subRes, plansRes] = await Promise.all([
+        this.client.get<{ subscriptions?: any[] }>(
+          `/products/${pId}/subscriptions.json`,
+          qs,
+        ),
+        this.client.get<{ plans?: any[] }>(`/products/${pId}/plans.json`),
       ]);
 
       const planMap = new Map<number, string>(
-        (plans || []).map((p: any) => [p.id, p.name])
+        (plansRes.plans || []).map((p: any) => [p.id, p.name]),
       );
 
-      const mappedSubscriptions = (subscriptions || []).map((s: any) =>
+      const mappedSubscriptions = (subRes.subscriptions || []).map((s: any) =>
         this.buildSubscriptionResult(s, planMap)
       );
 
-      return { subscriptions: mappedSubscriptions, total: mappedSubscriptions.length };
+      return {
+        subscriptions: mappedSubscriptions,
+        total: mappedSubscriptions.length,
+      };
     } catch (err: any) {
-      console.error("[FreemiusService] getSubscriptions error:", err.message || err);
+      console.error(
+        "[FreemiusService] getSubscriptions error:",
+        err.message || err,
+      );
       return { subscriptions: [], total: 0 };
     }
   }
 
-  /**
-   * Fetches a single subscription by its ID.
-   */
   async getSubscriptionById(
     subscriptionId: string | number,
-    productId?: string
+    productId?: string,
   ): Promise<SubscriptionResult | null> {
     try {
-      const sdk = this.getSDK(productId);
+      const pId = this.getProductId(productId);
+      this.client.validateContext({ productId: pId });
 
-      const [sub, plans] = await Promise.all([
-        sdk.api.subscription.retrieve(subscriptionId as number),
-        sdk.api.plan.list()
+      const [subRes, plansRes] = await Promise.all([
+        this.client.get<any>(
+          `/products/${pId}/subscriptions/${subscriptionId}.json`,
+        ),
+        this.client.get<{ plans?: any[] }>(`/products/${pId}/plans.json`),
       ]);
 
-      if (!sub) return null;
+      if (!subRes) return null;
 
       const planMap = new Map<number, string>(
-        (plans || []).map((p: any) => [p.id, p.name])
+        (plansRes.plans || []).map((p: any) => [p.id, p.name]),
       );
 
-      return this.buildSubscriptionResult(sub as any, planMap);
+      return this.buildSubscriptionResult(subRes, planMap);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error("[FreemiusService] getSubscriptionById error:", err.message || err);
+      console.error(
+        "[FreemiusService] getSubscriptionById error:",
+        err.message || err,
+      );
       return null;
     }
   }
 
   // ─── Payment Queries ────────────────────────────────────────────────────────────
 
-  /**
-   * Fetches payments for a given user ID, subscription ID, or product ID.
-   */
   async getPayments(
-    params: { userId?: string; subscriptionId?: string; productId?: string }
+    params: { userId?: string; subscriptionId?: string; productId?: string },
   ): Promise<PaymentsResult> {
     try {
-      const sdk = this.getSDK(params.productId);
+      const pId = this.getProductId(params.productId);
+      this.client.validateContext({ productId: pId });
 
       const qs: Record<string, string | number> = {};
       if (params.userId) qs.user_id = params.userId;
       if (params.subscriptionId) qs.subscription_id = params.subscriptionId;
 
-      const payments = await sdk.api.payment.list(qs);
+      const res = await this.client.get<{ payments?: any[] }>(
+        `/products/${pId}/payments.json`,
+        qs,
+      );
 
-      const mappedPayments = (payments || []).map((p: any) => this.buildPaymentResult(p));
+      const mappedPayments = (res.payments || []).map((p: any) =>
+        this.buildPaymentResult(p)
+      );
 
       return { payments: mappedPayments, total: mappedPayments.length };
     } catch (err: any) {
@@ -221,64 +208,52 @@ export class FreemiusService {
     }
   }
 
-  /**
-   * Fetches a single payment by its ID.
-   */
   async getPaymentById(
     paymentId: string | number,
-    productId?: string
+    productId?: string,
   ): Promise<PaymentResult | null> {
     try {
-      const sdk = this.getSDK(productId);
+      const pId = this.getProductId(productId);
+      this.client.validateContext({ productId: pId });
 
-      const payment = await sdk.api.payment.retrieve(paymentId as number);
+      const payment = await this.client.get<any>(
+        `/products/${pId}/payments/${paymentId}.json`,
+      );
       if (!payment) return null;
 
-      return this.buildPaymentResult(payment as any);
+      return this.buildPaymentResult(payment);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error("[FreemiusService] getPaymentById error:", err.message || err);
+      console.error(
+        "[FreemiusService] getPaymentById error:",
+        err.message || err,
+      );
       return null;
     }
   }
 
-  /**
-   * Fetches the raw PDF invoice for a given payment.
-   */
   async getInvoicePdf(
     paymentId: string | number,
-    productId?: string
+    productId?: string,
   ): Promise<ArrayBuffer | null> {
     try {
-      const sdk = this.getSDK(productId);
+      const pId = this.getProductId(productId);
+      this.client.validateContext({ productId: pId });
 
-      // We can use the SDK's internal HTTP client to make authenticated requests naturally.
-      // Although `payment.retrieve` returns JSON, we can bypass the JSON parsing for a PDF.
-      const url = `/${sdk.api.payment.getBaseUrl(paymentId as number)}/invoice.pdf`;
-
-      const res = await sdk.api.http.get(url, { __rawResponse: true } as any);
-
-      if (!res.ok) {
-        if (res.status === 404) return null;
-        const body = await res.text();
-        console.error("[FreemiusService] Invoice PDF API error:", res.status, body);
-        return null;
-      }
-
-      return await res.arrayBuffer();
+      const urlPath = `/products/${pId}/payments/${paymentId}/invoice.pdf`;
+      return await this.client.getBuffer(urlPath);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error("[FreemiusService] getInvoicePdf error:", err.message || err);
+      console.error(
+        "[FreemiusService] getInvoicePdf error:",
+        err.message || err,
+      );
       return null;
     }
   }
 
   // ─── Webhook Forwarding ───────────────────────────────────────────────────────
 
-  /**
-   * Optionally forwards verified webhook events to a configured URL
-   * (e.g. your SvelteKit app). Silently fails if not configured.
-   */
   async forwardEvent(event: FreemiusWebhookEvent): Promise<void> {
     const { forwardUrl, forwardSecret } = config.webhook;
     if (!forwardUrl) return;
@@ -301,7 +276,7 @@ export class FreemiusService {
 
       if (!res.ok) {
         console.warn(
-          `[FreemiusService] Forward to ${forwardUrl} failed: ${res.status}`
+          `[FreemiusService] Forward to ${forwardUrl} failed: ${res.status}`,
         );
       }
     } catch (err) {
@@ -311,9 +286,6 @@ export class FreemiusService {
 
   // ─── Private Helpers ────────────────────────────────────────────────────────
 
-  /**
-   * Derives a human-readable status from raw Freemius subscription fields.
-   */
   private deriveStatus(sub: FreemiusSubscription): SubscriptionStatus {
     if (sub.is_cancelled) return "cancelled";
     if (sub.billing_cycle !== 0 && sub.next_payment) {
@@ -323,18 +295,17 @@ export class FreemiusService {
     return "active";
   }
 
-  /**
-   * Builds a SubscriptionResult from a raw FreemiusSubscription.
-   */
   private buildSubscriptionResult(
     s: FreemiusSubscription,
-    planMap: Map<number, string>
+    planMap: Map<number, string>,
   ): SubscriptionResult {
-    const cycleLabel =
-      s.billing_cycle === 0 ? "lifetime"
-        : s.billing_cycle === 1 ? "monthly"
-          : s.billing_cycle === 12 ? "annual"
-            : `${s.billing_cycle} months`;
+    const cycleLabel = s.billing_cycle === 0
+      ? "lifetime"
+      : s.billing_cycle === 1
+      ? "monthly"
+      : s.billing_cycle === 12
+      ? "annual"
+      : `${s.billing_cycle} months`;
 
     return {
       id: s.id,
@@ -351,9 +322,6 @@ export class FreemiusService {
     };
   }
 
-  /**
-   * Builds a PaymentResult from a raw FreemiusPayment.
-   */
   private buildPaymentResult(p: FreemiusPayment): PaymentResult {
     return {
       id: p.id,
@@ -369,5 +337,4 @@ export class FreemiusService {
       is_refunded: p.is_refunded,
     };
   }
-
 }

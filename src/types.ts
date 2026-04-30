@@ -83,7 +83,6 @@ export interface PaymentsResult {
   total: number;
 }
 
-
 export type FreemiusWebhookType =
   | "install.installed"
   | "install.updated"
@@ -146,7 +145,7 @@ export interface SubscriptionResult {
   plan_id: number;
   plan_name?: string;
   license_id: number;
-  billing_cycle: number;   // 1=monthly, 12=annual, 0=lifetime
+  billing_cycle: number; // 1=monthly, 12=annual, 0=lifetime
   billing_cycle_label: "monthly" | "annual" | "lifetime" | string;
   amount_per_cycle: number;
   currency: string;

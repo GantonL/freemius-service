@@ -20,7 +20,7 @@ export class LicenseController {
   async validate(
     @Query("key") key: string,
     @Query("product_id") productId: string,
-    @Res() res: Response
+    @Res() res: Response,
   ) {
     if (!key) {
       res.status = 400;

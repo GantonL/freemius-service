@@ -4,11 +4,11 @@
  * immediately rather than at request time.
  */
 
-function require(key: string): string {
+function getRequiredEnvVar(key: string): string {
   const value = Deno.env.get(key);
   if (!value) {
     throw new Error(
-      `Missing required environment variable: ${key}. Check your .env file.`
+      `Missing required environment variable: ${key}. Check your .env file.`,
     );
   }
   return value;
@@ -22,10 +22,10 @@ export const config = {
   port: parseInt(optional("PORT", "8000"), 10),
 
   freemius: {
-    storeId: require("FREEMIUS_STORE_ID"),
-    publicKey: require("FREEMIUS_PUBLIC_KEY"),
-    secretKey: require("FREEMIUS_SECRET_KEY"),
-    webhookSecret: require("FREEMIUS_WEBHOOK_SECRET"),
+    storeId: getRequiredEnvVar("FREEMIUS_STORE_ID"),
+    productId: getRequiredEnvVar("FREEMIUS_PRODUCT_ID"),
+    apiToken: getRequiredEnvVar("FREEMIUS_API_TOKEN"),
+    productSecret: getRequiredEnvVar("FREEMIUS_PRODUCT_SECRET"),
     /** Base URL of the Freemius API */
     apiBase: "https://api.freemius.com/v1",
   },

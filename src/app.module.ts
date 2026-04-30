@@ -6,6 +6,12 @@ import { SubscriptionModule } from "./modules/subscriptions/subscription.module.
 import { InvoiceModule } from "./modules/invoices/invoice.module.ts";
 
 @Module({
-  imports: [HealthModule, WebhookModule, LicenseModule, SubscriptionModule, InvoiceModule],
+  imports: [
+    HealthModule,
+    WebhookModule,
+    LicenseModule,
+    SubscriptionModule,
+    InvoiceModule,
+  ],
 })
-export class AppModule { }
+export class AppModule {}

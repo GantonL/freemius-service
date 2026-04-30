@@ -1,15 +1,14 @@
 {
-    "tasks": {
-        "dev": "deno run --watch --allow-net --allow-env --allow-read src/main.ts",
-        "start": "deno run --allow-net --allow-env --allow-read src/main.ts"
-    },
-    "compilerOptions": {
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true
-    },
-    "imports": {
-        "@danet/core": "jsr:@danet/core@^2.9.6",
-        "@freemius/sdk": "npm:@freemius/sdk@^1.0.5",
-        "zod": "npm:zod@^3.23.8"
-    }
+  "tasks": {
+    "dev": "deno run --watch --allow-net --allow-env --allow-read src/main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read src/main.ts"
+  },
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "imports": {
+    "@danet/core": "jsr:@danet/core@^2.9.6",
+    "zod": "npm:zod@^3.23.8"
+  }
 }
