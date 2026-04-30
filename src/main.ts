@@ -10,9 +10,6 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`🚀 Freemius Service running on http://localhost:${port}`);
-  console.log(`   GET  /health`);
-  console.log(`   GET  /licenses/validate?key=XXX`);
-  console.log(`   POST /webhooks/freemius`);
 }
 
 bootstrap().catch((err) => {
