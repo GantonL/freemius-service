@@ -2,7 +2,6 @@ import { Injectable } from "@danet/core";
 import { config } from "../../config.ts";
 import type {
   FreemiusPayment,
-  FreemiusPlan,
   FreemiusSubscription,
   FreemiusWebhookEvent,
   LicenseValidationResult,
@@ -12,29 +11,34 @@ import type {
   SubscriptionsResult,
   SubscriptionStatus,
 } from "../../types.ts";
-import { FreemiusClient } from "./freemius.client.ts";
+import { FreemiusClient, type FreemiusClientInterface } from "./freemius.client.ts";
 
 /**
  * Core Freemius service.
- * Handles API communication using direct REST calls with Bearer Token,
- * and handles Webhook HMAC-SHA256 signature verification manually.
+ * Delegates all API communication to the FreemiusClient, which provides
+ * strongly-typed methods generated from `freemius.endpoints.ts`.
+ * This service is intentionally unaware of URL construction.
  */
 @Injectable()
 export class FreemiusService {
-  constructor(private readonly client: FreemiusClient) {}
+  private readonly client: FreemiusClientInterface;
+
+  constructor(client: FreemiusClient) {
+    // Cast to the full interface that includes Proxy-generated endpoint methods.
+    this.client = client as FreemiusClientInterface;
+  }
 
   /**
-   * Helper to resolve the correct product ID to use (from params or config fallback)
+   * Resolves the product ID to use (from argument or environment fallback).
    */
   private getProductId(productId?: string): string {
     return productId || config.freemius.productId;
   }
 
-  // ─── Webhook Verification ───────────────────────────────────────────────────
+  // ─── Webhook Verification ────────────────────────────────────────────────────
 
   /**
-   * Verifies an incoming Freemius webhook.
-   * Delegates signature verification to the client.
+   * Verifies an incoming Freemius webhook signature and returns the parsed event.
    */
   processWebhookRequest(
     rawBody: string,
@@ -43,7 +47,7 @@ export class FreemiusService {
     return this.client.verifyWebhookSignature(rawBody, signatureHeader);
   }
 
-  // ─── License Validation ─────────────────────────────────────────────────────
+  // ─── License Validation ──────────────────────────────────────────────────────
 
   /**
    * Validates a license key against the Freemius API.
@@ -54,26 +58,21 @@ export class FreemiusService {
   ): Promise<LicenseValidationResult> {
     try {
       const pId = this.getProductId(productId);
-      this.client.validateContext({ productId: pId });
 
-      const response = await this.client.get<{ licenses?: any[] }>(
-        `/products/${pId}/licenses.json`,
-        { search: licenseKey },
-      );
+      const response = await this.client.getLicenses({
+        productId: pId,
+        search: licenseKey,
+      }) as { licenses?: any[] };
+
       const licenses = response.licenses || [];
-
-      const license = licenses.find(
-        (l: any) => l.secret_key === licenseKey,
-      );
+      const license = licenses.find((l: any) => l.secret_key === licenseKey);
 
       if (!license) {
         return { valid: false, message: "License not found." };
       }
-
       if (license.is_cancelled) {
         return { valid: false, message: "License has been cancelled." };
       }
-
       if (license.expiration) {
         const expDate = new Date(license.expiration as string);
         if (expDate < new Date()) {
@@ -94,36 +93,26 @@ export class FreemiusService {
         message: "License is valid.",
       };
     } catch (err: any) {
-      console.error(
-        "[FreemiusService] validateLicense error:",
-        err.message || err,
-      );
-      return {
-        valid: false,
-        message: "An error occurred while validating the license.",
-      };
+      console.error("[FreemiusService] validateLicense error:", err.message || err);
+      return { valid: false, message: "An error occurred while validating the license." };
     }
   }
 
-  // ─── Subscription Queries ───────────────────────────────────────────────────────
+  // ─── Subscription Queries ────────────────────────────────────────────────────
 
   async getSubscriptions(
     params: { userId?: string; licenseKey?: string; productId?: string },
   ): Promise<SubscriptionsResult> {
     try {
       const pId = this.getProductId(params.productId);
-      this.client.validateContext({ productId: pId });
-
-      const qs: Record<string, string> = {};
-      if (params.userId) qs.user_id = params.userId;
-      if (params.licenseKey) qs.license_key = params.licenseKey;
 
       const [subRes, plansRes] = await Promise.all([
-        this.client.get<{ subscriptions?: any[] }>(
-          `/products/${pId}/subscriptions.json`,
-          qs,
-        ),
-        this.client.get<{ plans?: any[] }>(`/products/${pId}/plans.json`),
+        this.client.getSubscriptions({
+          productId: pId,
+          ...(params.userId && { user_id: params.userId }),
+          ...(params.licenseKey && { license_key: params.licenseKey }),
+        }) as Promise<{ subscriptions?: any[] }>,
+        this.client.getPlans({ productId: pId }) as Promise<{ plans?: any[] }>,
       ]);
 
       const planMap = new Map<number, string>(
@@ -134,15 +123,9 @@ export class FreemiusService {
         this.buildSubscriptionResult(s, planMap)
       );
 
-      return {
-        subscriptions: mappedSubscriptions,
-        total: mappedSubscriptions.length,
-      };
+      return { subscriptions: mappedSubscriptions, total: mappedSubscriptions.length };
     } catch (err: any) {
-      console.error(
-        "[FreemiusService] getSubscriptions error:",
-        err.message || err,
-      );
+      console.error("[FreemiusService] getSubscriptions error:", err.message || err);
       return { subscriptions: [], total: 0 };
     }
   }
@@ -153,13 +136,13 @@ export class FreemiusService {
   ): Promise<SubscriptionResult | null> {
     try {
       const pId = this.getProductId(productId);
-      this.client.validateContext({ productId: pId });
 
       const [subRes, plansRes] = await Promise.all([
-        this.client.get<any>(
-          `/products/${pId}/subscriptions/${subscriptionId}.json`,
-        ),
-        this.client.get<{ plans?: any[] }>(`/products/${pId}/plans.json`),
+        this.client.getSubscription({
+          productId: pId,
+          subscriptionId,
+        }) as Promise<any>,
+        this.client.getPlans({ productId: pId }) as Promise<{ plans?: any[] }>,
       ]);
 
       if (!subRes) return null;
@@ -171,31 +154,24 @@ export class FreemiusService {
       return this.buildSubscriptionResult(subRes, planMap);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error(
-        "[FreemiusService] getSubscriptionById error:",
-        err.message || err,
-      );
+      console.error("[FreemiusService] getSubscriptionById error:", err.message || err);
       return null;
     }
   }
 
-  // ─── Payment Queries ────────────────────────────────────────────────────────────
+  // ─── Payment Queries ─────────────────────────────────────────────────────────
 
   async getPayments(
     params: { userId?: string; subscriptionId?: string; productId?: string },
   ): Promise<PaymentsResult> {
     try {
       const pId = this.getProductId(params.productId);
-      this.client.validateContext({ productId: pId });
 
-      const qs: Record<string, string | number> = {};
-      if (params.userId) qs.user_id = params.userId;
-      if (params.subscriptionId) qs.subscription_id = params.subscriptionId;
-
-      const res = await this.client.get<{ payments?: any[] }>(
-        `/products/${pId}/payments.json`,
-        qs,
-      );
+      const res = await this.client.getPayments({
+        productId: pId,
+        ...(params.userId && { user_id: params.userId }),
+        ...(params.subscriptionId && { subscription_id: params.subscriptionId }),
+      }) as { payments?: any[] };
 
       const mappedPayments = (res.payments || []).map((p: any) =>
         this.buildPaymentResult(p)
@@ -214,20 +190,17 @@ export class FreemiusService {
   ): Promise<PaymentResult | null> {
     try {
       const pId = this.getProductId(productId);
-      this.client.validateContext({ productId: pId });
 
-      const payment = await this.client.get<any>(
-        `/products/${pId}/payments/${paymentId}.json`,
-      );
+      const payment = await this.client.getPayment({
+        productId: pId,
+        paymentId,
+      }) as any;
+
       if (!payment) return null;
-
       return this.buildPaymentResult(payment);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error(
-        "[FreemiusService] getPaymentById error:",
-        err.message || err,
-      );
+      console.error("[FreemiusService] getPaymentById error:", err.message || err);
       return null;
     }
   }
@@ -238,16 +211,14 @@ export class FreemiusService {
   ): Promise<ArrayBuffer | null> {
     try {
       const pId = this.getProductId(productId);
-      this.client.validateContext({ productId: pId });
 
-      const urlPath = `/products/${pId}/payments/${paymentId}/invoice.pdf`;
-      return await this.client.getBuffer(urlPath);
+      return await this.client.getInvoicePdf({
+        productId: pId,
+        paymentId,
+      }) as ArrayBuffer;
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error(
-        "[FreemiusService] getInvoicePdf error:",
-        err.message || err,
-      );
+      console.error("[FreemiusService] getInvoicePdf error:", err.message || err);
       return null;
     }
   }
@@ -260,19 +231,13 @@ export class FreemiusService {
 
     try {
       const body = JSON.stringify(event);
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
 
       if (forwardSecret) {
         headers["x-webhook-secret"] = forwardSecret;
       }
 
-      const res = await fetch(forwardUrl, {
-        method: "POST",
-        headers,
-        body,
-      });
+      const res = await fetch(forwardUrl, { method: "POST", headers, body });
 
       if (!res.ok) {
         console.warn(
@@ -284,7 +249,7 @@ export class FreemiusService {
     }
   }
 
-  // ─── Private Helpers ────────────────────────────────────────────────────────
+  // ─── Private Helpers ──────────────────────────────────────────────────────────
 
   private deriveStatus(sub: FreemiusSubscription): SubscriptionStatus {
     if (sub.is_cancelled) return "cancelled";
