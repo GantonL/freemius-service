@@ -1,5 +1,13 @@
-import { Controller, Get, Param, Query, Res } from "@danet/core";
-import type { Response } from "@danet/core";
+import {
+  BadGatewayException,
+  BadRequestException,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  Res,
+} from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
 
 /**
@@ -27,14 +35,12 @@ export class SubscriptionController {
     @Query("user_id") userId: string,
     @Query("license_key") licenseKey: string,
     @Query("product_id") productId: string,
-    @Res() res: Response,
   ) {
     if (!userId && !licenseKey) {
-      res.status = 400;
-      return {
-        error:
-          "At least one of `user_id` or `license_key` query parameters is required.",
-      };
+      const error = new BadRequestException();
+      error.message =
+        "At least one of `user_id` or `license_key` query parameters is required.";
+      throw error;
     }
 
     const result = await this.freemiusService.getSubscriptions({
@@ -55,7 +61,6 @@ export class SubscriptionController {
   async getById(
     @Param("id") id: string,
     @Query("product_id") productId: string,
-    @Res() res: Response,
   ) {
     const result = await this.freemiusService.getSubscriptionById(
       id,
@@ -63,8 +68,9 @@ export class SubscriptionController {
     );
 
     if (!result) {
-      res.status = 404;
-      return { error: `Subscription ${id} not found.` };
+      const error = new NotFoundException();
+      error.message = `Subscription ${id} not found.`;
+      throw error;
     }
 
     return result;

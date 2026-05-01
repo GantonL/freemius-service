@@ -1,4 +1,4 @@
-import { Controller, Post, Req, Res } from "@danet/core";
+import { Controller, Post, Req, UnauthorizedException } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
 
 @Controller("webhooks")
@@ -11,25 +11,24 @@ export class WebhookController {
    * Receives Freemius webhook events and verifies their HMAC signature.
    */
   @Post("freemius")
-  async handleFreemiusWebhook(@Req() req: any, @Res() res: any) {
+  async handleFreemiusWebhook(@Req req: any) {
     // Determine the raw web request. Danet may pass different req objects.
     const standardRequest = req instanceof Request ? req : req.request || req;
 
-    const signature = standardRequest.headers.get("x-signature") ||
+    const signature =
+      standardRequest.headers.get("x-signature") ||
       standardRequest.headers.get("signature");
     const rawBody = await standardRequest.text();
 
-    const event = this.service.processWebhookRequest(
-      rawBody,
-      signature,
-    );
+    const event = this.service.processWebhookRequest(rawBody, signature);
 
     if (!event) {
       console.warn(
         "[WebhookController] Invalid signature received or unmapped event.",
       );
-      res.status = 401;
-      return { error: "Invalid webhook signature or unrecognized format." };
+      const error = new UnauthorizedException();
+      error.message = "Invalid webhook signature or unrecognized format.";
+      throw error;
     }
 
     // Process event types

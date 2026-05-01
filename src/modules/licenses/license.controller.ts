@@ -1,5 +1,4 @@
-import { Controller, Get, Query, Res } from "@danet/core";
-import type { Response } from "@danet/core";
+import { BadRequestException, Controller, Get, Query } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
 
 @Controller("licenses")
@@ -20,11 +19,11 @@ export class LicenseController {
   async validate(
     @Query("key") key: string,
     @Query("product_id") productId: string,
-    @Res() res: Response,
   ) {
     if (!key) {
-      res.status = 400;
-      return { error: "Missing required query parameter: key" };
+      const error = new BadRequestException();
+      error.message = "Key is required";
+      throw error;
     }
 
     const result = await this.freemiusService.validateLicense(key, productId);

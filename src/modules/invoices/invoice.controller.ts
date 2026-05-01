@@ -5,7 +5,6 @@ import {
   NotFoundException,
   Param,
   Query,
-  Req,
   Res,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
@@ -36,7 +35,7 @@ export class InvoiceController {
   }
 
   @Get(":id/pdf")
-  async getInvoicePdf(@Param("id") id: string, @Res() response: any) {
+  async getInvoicePdf(@Param("id") id: string) {
     const pdfBuffer = await this.freemiusService.getInvoicePdf(id);
     if (!pdfBuffer) {
       throw new NotFoundException();
