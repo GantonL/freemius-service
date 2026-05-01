@@ -12,6 +12,7 @@ import type {
   SubscriptionStatus,
 } from "../../types.ts";
 import { FreemiusClient, type FreemiusClientInterface } from "./freemius.client.ts";
+import { HttpClient } from "../../utils/http.util.ts";
 
 /**
  * Core Freemius service.
@@ -23,7 +24,7 @@ import { FreemiusClient, type FreemiusClientInterface } from "./freemius.client.
 export class FreemiusService {
   private readonly client: FreemiusClientInterface;
 
-  constructor(client: FreemiusClient) {
+  constructor(client: FreemiusClient, private readonly http: HttpClient) {
     // Cast to the full interface that includes Proxy-generated endpoint methods.
     this.client = client as FreemiusClientInterface;
   }
@@ -230,22 +231,21 @@ export class FreemiusService {
     if (!forwardUrl) return;
 
     try {
-      const body = JSON.stringify(event);
       const headers: Record<string, string> = { "Content-Type": "application/json" };
 
       if (forwardSecret) {
         headers["x-webhook-secret"] = forwardSecret;
       }
 
-      const res = await fetch(forwardUrl, { method: "POST", headers, body });
-
-      if (!res.ok) {
-        console.warn(
-          `[FreemiusService] Forward to ${forwardUrl} failed: ${res.status}`,
-        );
-      }
-    } catch (err) {
-      console.error("[FreemiusService] Event forwarding error:", err);
+      await this.http.post(forwardUrl, {
+        headers,
+        body: JSON.stringify(event),
+      });
+    } catch (err: any) {
+      console.warn(
+        `[FreemiusService] Forward to ${forwardUrl} failed:`,
+        err.status || err.message || err,
+      );
     }
   }
 
