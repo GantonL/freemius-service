@@ -1,7 +1,15 @@
-import { Context, Controller, Post, UseGuard } from "@danet/core";
-import type { ExecutionContext } from "@danet/core";
+import {
+  Context,
+  Controller,
+  Post,
+  UseGuard,
+  type ExecutionContext,
+} from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
-import { FREEMIUS_EVENT_KEY, FreemiusWebhookGuard } from "./freemius-webhook.guard.ts";
+import {
+  FREEMIUS_EVENT_KEY,
+  FreemiusWebhookGuard,
+} from "./freemius-webhook.guard.ts";
 import type { FreemiusWebhookEvent } from "../../types.ts";
 
 @Controller("webhooks")
@@ -13,7 +21,6 @@ export class WebhookController {
   async handleFreemiusWebhook(@Context() ctx: ExecutionContext) {
     const event = ctx.get(FREEMIUS_EVENT_KEY) as FreemiusWebhookEvent;
 
-    // Process event types
     const { type, objects } = event;
     const { user, subscription, license, plan } = objects || {};
 
@@ -52,7 +59,7 @@ export class WebhookController {
     }
 
     // Forward to your app (fire-and-forget)
-    this.service.forwardEvent(event as any);
+    this.service.forwardEvent(event);
 
     return { received: true };
   }
