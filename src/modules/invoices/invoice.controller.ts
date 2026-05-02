@@ -22,7 +22,7 @@ export class InvoiceController {
       throw new BadRequestException();
     }
 
-    return this.freemiusService.getPayments({ userId, subscriptionId });
+    return await this.freemiusService.getPayments({ userId, subscriptionId });
   }
 
   @Get(":id")
