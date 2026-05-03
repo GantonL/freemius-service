@@ -1,110 +1,67 @@
 import { assertEquals } from "@std/assert";
-import { setupTestApp, teardownTestApp } from "./setup.ts";
-import { api } from "./helpers/request.ts";
-import { mockFreemius } from "./helpers/mock-freemius.ts";
-import crypto from "node:crypto";
+import { createTestContext, TEST_FORWARD_SECRET } from "./context.ts";
+import { makeWebhookPayload, signPayload } from "./fixtures/webhook.ts";
+
+const SUPPORTED_EVENT_TYPES = [
+  "install.installed",
+  "install.updated",
+  "install.activated",
+  "install.deactivated",
+  "install.uninstalled",
+  "subscription.created",
+  "subscription.activated",
+  "subscription.cancelled",
+  "subscription.expired",
+  "subscription.charged_successfully",
+  "subscription.charged_failed",
+  "license.activated",
+  "license.deactivated",
+  "license.expired",
+  "user.updated",
+];
 
 Deno.test("Webhooks Suite", async (t) => {
-  await setupTestApp();
-  mockFreemius.setup();
+  await using ctx = await createTestContext();
 
-  const supportedEventTypes = [
-    "install.installed",
-    "install.updated",
-    "install.activated",
-    "install.deactivated",
-    "install.uninstalled",
-    "subscription.created",
-    "subscription.activated",
-    "subscription.cancelled",
-    "subscription.expired",
-    "subscription.charged_successfully",
-    "subscription.charged_failed",
-    "license.activated",
-    "license.deactivated",
-    "license.expired",
-    "user.updated",
-  ];
-
-  for (const eventType of supportedEventTypes) {
+  for (const eventType of SUPPORTED_EVENT_TYPES) {
     await t.step(`should accept webhook for event type: ${eventType}`, async () => {
-      // Arrange
-      const payload = {
-        type: eventType,
-        plugin_id: 123,
-        timestamp: Date.now(),
-        objects: {
-          user: { email: "test@example.com" }
-        }
-      };
-      const rawBody = JSON.stringify(payload);
-      const secret = "test_secret"; // Configured in setup.ts
-      const signature = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-
-      // Act
-      const { status, body } = await api.webhooks.sendFreemius(payload, signature);
-
-      // Assert
+      const payload = makeWebhookPayload(eventType);
+      const { status, body } = await ctx.api.webhooks.sendFreemius(payload, signPayload(payload));
       assertEquals(status, 200);
       assertEquals(body.received, true);
     });
   }
 
   await t.step("should reject webhook with invalid signature", async () => {
-    // Arrange
-    const payload = { type: "subscription.activated" };
-    
-    // Act
-    const { status } = await api.webhooks.sendFreemius(payload, "invalid_signature");
-
-    // Assert
-    assertEquals(status, 403); // Guard should block it
+    const { status } = await ctx.api.webhooks.sendFreemius(
+      makeWebhookPayload("subscription.activated"),
+      "invalid_signature",
+    );
+    assertEquals(status, 403);
   });
 
   await t.step("should reject webhook with missing signature", async () => {
-    // Arrange
-    const payload = { type: "subscription.activated" };
-    
-    // Act
-    const { status } = await api.webhooks.sendFreemius(payload); // No signature
-
-    // Assert
+    const { status } = await ctx.api.webhooks.sendFreemius(makeWebhookPayload("subscription.activated"));
     assertEquals(status, 403);
   });
 
   await t.step("should forward webhook to configured URL", async () => {
-    // Arrange
-    const payload = {
-      type: "license.activated",
-      plugin_id: 123,
-      timestamp: Date.now()
-    };
-    const rawBody = JSON.stringify(payload);
-    const secret = "test_secret";
-    const signature = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+    const payload = makeWebhookPayload("license.activated");
 
-    let forwardedPayload: any = null;
-    let forwardedSecretHeader: string | null = null;
+    let resolveForward!: (data: { payload: unknown; secret: string | null }) => void;
+    const forwarded = new Promise<{ payload: unknown; secret: string | null }>((r) => resolveForward = r);
 
-    mockFreemius.clearMocks();
-    mockFreemius.addMock(/test-forward/, async (req) => {
-      forwardedPayload = await req.json();
-      forwardedSecretHeader = req.headers.get("x-webhook-secret");
+    ctx.mock.clearMocks();
+    ctx.mock.addMock(/test-forward/, async (req) => {
+      resolveForward({ payload: await req.json(), secret: req.headers.get("x-webhook-secret") });
       return new Response(JSON.stringify({ success: true }), { status: 200 });
     });
 
-    // Act
-    const { status } = await api.webhooks.sendFreemius(payload, signature);
+    const { status } = await ctx.api.webhooks.sendFreemius(payload, signPayload(payload));
+    const { payload: forwardedPayload, secret } = await forwarded;
 
-    // Give it a tiny bit of time for the fire-and-forget forward to hit our mock
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Assert
     assertEquals(status, 200);
-    assertEquals(forwardedPayload?.type, "license.activated");
-    assertEquals(forwardedSecretHeader, "forward_secret");
+    assertEquals((forwardedPayload as Record<string, unknown>).type, "license.activated");
+    assertEquals(secret, TEST_FORWARD_SECRET);
   });
-
-  mockFreemius.teardown();
-  await teardownTestApp();
 });

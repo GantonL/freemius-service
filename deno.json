@@ -2,7 +2,7 @@
   "tasks": {
     "dev": "deno run --watch --allow-net --allow-env --env --allow-read src/main.ts",
     "start": "deno run --allow-net --allow-env --allow-read src/main.ts",
-    "test:e2e": "deno test --allow-net --allow-env --env test/e2e/"
+    "test": "deno test --allow-net --allow-env --env"
   },
   "compilerOptions": {
     "experimentalDecorators": true,
