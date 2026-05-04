@@ -1,5 +1,4 @@
 import { DanetApplication } from "@danet/core";
-import { AppModule } from "../../src/app.module.ts";
 import { createApi } from "./helpers/request.ts";
 import { createMockFreemius } from "./helpers/mock-freemius.ts";
 
@@ -17,13 +16,15 @@ export async function createTestContext() {
   const port = 8000 + Math.floor(Math.random() * 1000);
   Deno.env.set("PORT", port.toString());
 
+  const { TestAppModule } = await import("./helpers/test-app.module.ts");
+
   const app = new DanetApplication();
   const mock = createMockFreemius();
 
   const originalLog = console.log;
   console.log = () => {};
   try {
-    await app.init(AppModule);
+    await app.init(TestAppModule);
     await app.listen(port);
   } finally {
     console.log = originalLog;

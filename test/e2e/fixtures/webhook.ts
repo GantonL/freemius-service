@@ -9,7 +9,14 @@ export function makeWebhookPayload(
     type: eventType,
     plugin_id: 123,
     timestamp: Date.now(),
-    objects: { user: { email: "test@example.com" } },
+    objects: {
+      user: { email: "test@example.com", id: 1, first: "Test", last: "User", is_verified: true },
+      license: {
+        id: 1, plugin_id: 123, user_id: 1, plan_id: 10, quota: 5,
+        activated: 1, activated_local: 0, expiration: null,
+        is_cancelled: false, is_whitelabeled: false, secret_key: "sk_test",
+      },
+    },
     ...overrides,
   };
 }

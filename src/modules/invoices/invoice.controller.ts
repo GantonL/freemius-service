@@ -5,7 +5,6 @@ import {
   NotFoundException,
   Param,
   Query,
-  Res,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
 
@@ -13,7 +12,7 @@ import { FreemiusService } from "../freemius/freemius.service.ts";
 export class InvoiceController {
   constructor(private readonly freemiusService: FreemiusService) {}
 
-  @Get()
+  @Get("")
   async getInvoices(
     @Query("user_id") userId?: string,
     @Query("subscription_id") subscriptionId?: string,

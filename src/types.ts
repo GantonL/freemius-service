@@ -12,6 +12,8 @@ export interface FreemiusLicense {
   is_cancelled: boolean;
   is_whitelabeled: boolean;
   secret_key: string;
+  pricing_id?: number;
+  type?: string;
 }
 
 export interface FreemiusUser {
@@ -95,6 +97,7 @@ export type FreemiusWebhookType =
   | "subscription.expired"
   | "subscription.charged_successfully"
   | "subscription.charged_failed"
+  | "license.created"
   | "license.activated"
   | "license.deactivated"
   | "license.expired"
