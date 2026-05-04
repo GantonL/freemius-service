@@ -3,10 +3,14 @@ import { eq, type SQL } from "drizzle-orm";
 import { AbstractCrudService } from "./abstract-crud.service.ts";
 import { users } from "../schema.ts";
 import { ClientProvider } from "../client.provider.ts";
+import { CacheService } from "../../cache/cache.service.ts";
 
 @Injectable()
 export class UserService extends AbstractCrudService<typeof users> {
-  constructor(clientProvider: ClientProvider) {
+  constructor(
+    clientProvider: ClientProvider,
+    private readonly cache: CacheService,
+  ) {
     super(clientProvider, users);
   }
 
@@ -14,10 +18,13 @@ export class UserService extends AbstractCrudService<typeof users> {
     return filters;
   }
 
-  /**
-   * Get a single user by email.
-   */
   async getOne(email: string) {
-    return await this.findOne(eq(users.email, email));
+    const key = `user:email:${email}`;
+    const cached = this.cache.get<typeof users.$inferSelect>(key);
+    if (cached !== undefined) return cached;
+
+    const user = await this.findOne(eq(users.email, email));
+    if (user !== null) this.cache.set(key, user);
+    return user;
   }
 }
