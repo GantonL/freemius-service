@@ -60,10 +60,12 @@ export interface FreemiusPayment {
   license_id: number | null;
   amount: number;
   gross: number;
-  tax: number;
+  vat: number;
   currency: string;
   created: string;
   is_refunded: boolean;
+  is_renewal: boolean;
+  type: string; // 'payment'
 }
 
 export interface PaymentResult {
@@ -82,7 +84,6 @@ export interface PaymentResult {
 
 export interface PaymentsResult {
   payments: PaymentResult[];
-  total: number;
 }
 
 export type FreemiusWebhookType =

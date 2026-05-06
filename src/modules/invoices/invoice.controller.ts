@@ -7,6 +7,10 @@ import {
   Query,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
+import {
+  buildPaginationOptions,
+  PAGINATION_DEFAULT_COUNT,
+} from "../../utils/pagination.util.ts";
 
 @Controller("invoices")
 export class InvoiceController {
@@ -14,14 +18,18 @@ export class InvoiceController {
 
   @Get("")
   async getInvoices(
-    @Query("user_id") userId?: string,
-    @Query("subscription_id") subscriptionId?: string,
+    @Query("user_id") userId: string,
+    @Query("count") count?: number,
+    @Query("offset") offset?: number,
   ) {
-    if (!userId && !subscriptionId) {
+    if (!userId) {
       throw new BadRequestException();
     }
-
-    return await this.freemiusService.getPayments({ userId, subscriptionId });
+    const params = { userId };
+    const options = {
+      pagination: buildPaginationOptions({ count, offset }),
+    };
+    return await this.freemiusService.getPayments(params, options);
   }
 
   @Get(":id")

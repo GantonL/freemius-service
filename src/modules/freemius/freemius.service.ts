@@ -11,8 +11,15 @@ import type {
   SubscriptionsResult,
   SubscriptionStatus,
 } from "../../types.ts";
-import { FreemiusClient, type FreemiusClientInterface } from "./freemius.client.ts";
+import {
+  FreemiusClient,
+  type FreemiusClientInterface,
+} from "./freemius.client.ts";
 import { HttpClient } from "../../utils/http.util.ts";
+import {
+  buildPaginationOptions,
+  Pagination,
+} from "../../utils/pagination.util.ts";
 
 /**
  * Core Freemius service.
@@ -94,8 +101,14 @@ export class FreemiusService {
         message: "License is valid.",
       };
     } catch (err: any) {
-      console.error("[FreemiusService] validateLicense error:", err.message || err);
-      return { valid: false, message: "An error occurred while validating the license." };
+      console.error(
+        "[FreemiusService] validateLicense error:",
+        err.message || err,
+      );
+      return {
+        valid: false,
+        message: "An error occurred while validating the license.",
+      };
     }
   }
 
@@ -124,9 +137,15 @@ export class FreemiusService {
         this.buildSubscriptionResult(s, planMap)
       );
 
-      return { subscriptions: mappedSubscriptions, total: mappedSubscriptions.length };
+      return {
+        subscriptions: mappedSubscriptions,
+        total: mappedSubscriptions.length,
+      };
     } catch (err: any) {
-      console.error("[FreemiusService] getSubscriptions error:", err.message || err);
+      console.error(
+        "[FreemiusService] getSubscriptions error:",
+        err.message || err,
+      );
       return { subscriptions: [], total: 0 };
     }
   }
@@ -155,7 +174,10 @@ export class FreemiusService {
       return this.buildSubscriptionResult(subRes, planMap);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error("[FreemiusService] getSubscriptionById error:", err.message || err);
+      console.error(
+        "[FreemiusService] getSubscriptionById error:",
+        err.message || err,
+      );
       return null;
     }
   }
@@ -163,25 +185,29 @@ export class FreemiusService {
   // ─── Payment Queries ─────────────────────────────────────────────────────────
 
   async getPayments(
-    params: { userId?: string; subscriptionId?: string; productId?: string },
+    params: { userId: string; productId?: string },
+    options?: { pagination?: Pagination },
   ): Promise<PaymentsResult> {
     try {
       const pId = this.getProductId(params.productId);
 
       const res = await this.client.getPayments({
         productId: pId,
-        ...(params.userId && { user_id: params.userId }),
-        ...(params.subscriptionId && { subscription_id: params.subscriptionId }),
-      }) as { payments?: any[] };
+        search_user_id: params.userId,
+        ...buildPaginationOptions(options?.pagination),
+      }) as { payments: FreemiusPayment[] };
 
-      const mappedPayments = (res.payments || []).map((p: any) =>
+      const mappedPayments = (res?.payments ?? []).map((p: FreemiusPayment) =>
         this.buildPaymentResult(p)
       );
 
-      return { payments: mappedPayments, total: mappedPayments.length };
+      return { payments: mappedPayments };
     } catch (err: any) {
-      console.error("[FreemiusService] getPayments error:", err.message || err);
-      return { payments: [], total: 0 };
+      console.error(
+        "[FreemiusService] getPayments error:",
+        err?.message || err,
+      );
+      return { payments: [] };
     }
   }
 
@@ -201,7 +227,10 @@ export class FreemiusService {
       return this.buildPaymentResult(payment);
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error("[FreemiusService] getPaymentById error:", err.message || err);
+      console.error(
+        "[FreemiusService] getPaymentById error:",
+        err.message || err,
+      );
       return null;
     }
   }
@@ -219,7 +248,10 @@ export class FreemiusService {
       }) as ArrayBuffer;
     } catch (err: any) {
       if (err.status === 404) return null;
-      console.error("[FreemiusService] getInvoicePdf error:", err.message || err);
+      console.error(
+        "[FreemiusService] getInvoicePdf error:",
+        err.message || err,
+      );
       return null;
     }
   }
@@ -231,7 +263,9 @@ export class FreemiusService {
     if (!forwardUrl) return;
 
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
 
       if (forwardSecret) {
         headers["x-webhook-secret"] = forwardSecret;
@@ -296,7 +330,7 @@ export class FreemiusService {
       license_id: p.license_id,
       amount: p.amount,
       gross: p.gross,
-      tax: p.tax,
+      tax: p.vat,
       currency: p.currency,
       created: p.created,
       is_refunded: p.is_refunded,
