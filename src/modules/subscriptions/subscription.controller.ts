@@ -1,12 +1,10 @@
 import {
-  BadGatewayException,
   BadRequestException,
   Controller,
   Get,
   NotFoundException,
   Param,
   Query,
-  Res,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
 
@@ -32,21 +30,17 @@ export class SubscriptionController {
    */
   @Get("")
   async list(
-    @Query("user_id") userId: string,
-    @Query("license_key") licenseKey: string,
+    @Query("user_email") userEmail: string,
     @Query("product_id") productId: string,
   ) {
-    if (!userId && !licenseKey) {
+    if (!userEmail) {
       const error = new BadRequestException();
-      error.message =
-        "At least one of `user_id` or `license_key` query parameters is required.";
       throw error;
     }
 
     const result = await this.freemiusService.getSubscriptions({
-      userId: userId || undefined,
-      licenseKey: licenseKey || undefined,
-      productId: productId || undefined,
+      userEmail,
+      productId,
     });
 
     return result;

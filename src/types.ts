@@ -161,5 +161,4 @@ export interface SubscriptionResult {
 
 export interface SubscriptionsResult {
   subscriptions: SubscriptionResult[];
-  total: number;
 }

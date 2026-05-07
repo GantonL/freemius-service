@@ -3,6 +3,7 @@ import { config } from "../../config.ts";
 import type {
   FreemiusLicense,
   FreemiusPayment,
+  FreemiusPlan,
   FreemiusSubscription,
   FreemiusWebhookEvent,
   LicenseValidationResult,
@@ -113,7 +114,7 @@ export class FreemiusService {
   // ─── Subscription Queries ────────────────────────────────────────────────────
 
   async getSubscriptions(
-    params: { userId?: string; licenseKey?: string; productId?: string },
+    params: { userEmail?: string; productId?: string },
   ): Promise<SubscriptionsResult> {
     try {
       const pId = this.getProductId(params.productId);
@@ -121,30 +122,30 @@ export class FreemiusService {
       const [subRes, plansRes] = await Promise.all([
         this.client.getSubscriptions({
           productId: pId,
-          ...(params.userId && { user_id: params.userId }),
-          ...(params.licenseKey && { license_key: params.licenseKey }),
-        }) as Promise<{ subscriptions?: any[] }>,
-        this.client.getPlans({ productId: pId }) as Promise<{ plans?: any[] }>,
+          search: params.userEmail,
+        }) as Promise<{ subscriptions?: FreemiusSubscription[] }>,
+        this.client.getPlans({ productId: pId }) as Promise<
+          { plans?: FreemiusPlan[] }
+        >,
       ]);
 
       const planMap = new Map<number, string>(
-        (plansRes.plans || []).map((p: any) => [p.id, p.name]),
+        (plansRes.plans || []).map((p: FreemiusPlan) => [p.id, p.name]),
       );
 
-      const mappedSubscriptions = (subRes.subscriptions || []).map((s: any) =>
-        this.buildSubscriptionResult(s, planMap)
-      );
+      const mappedSubscriptions = (subRes.subscriptions || []).map((
+        s: FreemiusSubscription,
+      ) => this.buildSubscriptionResult(s, planMap));
 
       return {
         subscriptions: mappedSubscriptions,
-        total: mappedSubscriptions.length,
       };
     } catch (err: any) {
       console.error(
         "[FreemiusService] getSubscriptions error:",
         err.message || err,
       );
-      return { subscriptions: [], total: 0 };
+      return { subscriptions: [] };
     }
   }
 
