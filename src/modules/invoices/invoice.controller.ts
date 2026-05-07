@@ -7,10 +7,7 @@ import {
   Query,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
-import {
-  buildPaginationOptions,
-  PAGINATION_DEFAULT_COUNT,
-} from "../../utils/pagination.util.ts";
+import { buildPaginationOptions } from "../../utils/pagination.util.ts";
 
 @Controller("invoices")
 export class InvoiceController {

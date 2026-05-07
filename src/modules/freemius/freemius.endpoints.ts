@@ -19,6 +19,11 @@ export const freemiusEndpoints = {
     path: "/products/:productId/licenses.json",
   },
 
+  getLicense: {
+    method: "GET",
+    path: "/products/:productId/licenses/:licenseId.json",
+  },
+
   // ─── Plans ─────────────────────────────────────────────────────────────────
   getPlans: {
     method: "GET",
@@ -64,29 +69,30 @@ export interface EndpointConfig {
  * E.g. `/products/:productId/subscriptions/:subscriptionId.json`
  *   → `"productId" | "subscriptionId"`
  */
-type ExtractPathParams<P extends string> =
-  P extends `${infer _Before}:${infer Param}/${infer Rest}`
-    ? Param | ExtractPathParams<`/${Rest}`>
-    : P extends `${infer _Before}:${infer Param}`
-    ? // Strip trailing file extension from the last segment (e.g. `.json`, `.pdf`)
-      Param extends `${infer Clean}.${infer _Ext}`
-      ? Clean
-      : Param
-    : never;
+type ExtractPathParams<P extends string> = P extends
+  `${infer _Before}:${infer Param}/${infer Rest}`
+  ? Param | ExtractPathParams<`/${Rest}`>
+  : P extends `${infer _Before}:${infer Param}`
+  // Strip trailing file extension from the last segment (e.g. `.json`, `.pdf`)
+    ? Param extends `${infer Clean}.${infer _Ext}` ? Clean
+    : Param
+  : never;
 
 /**
  * The argument object expected by each generated client method.
  * Path parameters are required; any additional key becomes a query-string param.
  */
-export type EndpointArgs<P extends string> = {
-  [K in ExtractPathParams<P>]: string | number;
-} & Record<string, string | number | undefined>;
+export type EndpointArgs<P extends string> =
+  & {
+    [K in ExtractPathParams<P>]: string | number;
+  }
+  & Record<string, string | number | undefined>;
 
 /**
  * The return type for a single endpoint, based on its `responseType`.
  */
-export type EndpointReturn<C extends EndpointConfig> =
-  C["responseType"] extends "arrayBuffer" ? ArrayBuffer : unknown;
+export type EndpointReturn<C extends EndpointConfig> = C["responseType"] extends
+  "arrayBuffer" ? ArrayBuffer : unknown;
 
 /**
  * A mapped type that turns the endpoint config map into a set of async methods

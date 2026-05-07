@@ -17,16 +17,19 @@ export class LicenseController {
    */
   @Get("validate")
   async validate(
-    @Query("key") key: string,
+    @Query("license_id") licenseId: string,
     @Query("product_id") productId: string,
   ) {
-    if (!key) {
+    if (!licenseId) {
       const error = new BadRequestException();
-      error.message = "Key is required";
+      error.message = "license_id is required";
       throw error;
     }
 
-    const result = await this.freemiusService.validateLicense(key, productId);
+    const result = await this.freemiusService.validateLicense(
+      licenseId,
+      productId,
+    );
     return result;
   }
 }

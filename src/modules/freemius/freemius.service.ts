@@ -1,6 +1,7 @@
 import { Injectable } from "@danet/core";
 import { config } from "../../config.ts";
 import type {
+  FreemiusLicense,
   FreemiusPayment,
   FreemiusSubscription,
   FreemiusWebhookEvent,
@@ -61,19 +62,16 @@ export class FreemiusService {
    * Validates a license key against the Freemius API.
    */
   async validateLicense(
-    licenseKey: string,
+    licenseId: string,
     productId?: string,
   ): Promise<LicenseValidationResult> {
     try {
       const pId = this.getProductId(productId);
 
-      const response = await this.client.getLicenses({
+      const license = await this.client.getLicense({
         productId: pId,
-        search: licenseKey,
-      }) as { licenses?: any[] };
-
-      const licenses = response.licenses || [];
-      const license = licenses.find((l: any) => l.secret_key === licenseKey);
+        licenseId: licenseId,
+      }) as FreemiusLicense;
 
       if (!license) {
         return { valid: false, message: "License not found." };
@@ -221,7 +219,7 @@ export class FreemiusService {
       const payment = await this.client.getPayment({
         productId: pId,
         paymentId,
-      }) as any;
+      }) as FreemiusPayment;
 
       if (!payment) return null;
       return this.buildPaymentResult(payment);
