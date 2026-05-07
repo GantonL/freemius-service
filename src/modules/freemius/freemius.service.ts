@@ -160,14 +160,16 @@ export class FreemiusService {
         this.client.getSubscription({
           productId: pId,
           subscriptionId,
-        }) as Promise<any>,
-        this.client.getPlans({ productId: pId }) as Promise<{ plans?: any[] }>,
+        }) as Promise<FreemiusSubscription>,
+        this.client.getPlans({ productId: pId }) as Promise<
+          { plans?: FreemiusPlan[] }
+        >,
       ]);
 
       if (!subRes) return null;
 
       const planMap = new Map<number, string>(
-        (plansRes.plans || []).map((p: any) => [p.id, p.name]),
+        (plansRes.plans || []).map((p: FreemiusPlan) => [p.id, p.name]),
       );
 
       return this.buildSubscriptionResult(subRes, planMap);
