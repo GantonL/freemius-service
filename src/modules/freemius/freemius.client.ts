@@ -5,9 +5,9 @@ import { config } from "../../config.ts";
 import { HttpClient } from "../../utils/http.util.ts";
 import type { FreemiusWebhookEvent } from "../../types.ts";
 import {
-  freemiusEndpoints,
   type EndpointConfig,
   type FreemiusClientMethods,
+  freemiusEndpoints,
 } from "./freemius.endpoints.ts";
 
 // ─── Proxy target type ────────────────────────────────────────────────────────
@@ -31,10 +31,10 @@ export class FreemiusClient {
     // Return a Proxy so that property accesses for endpoint names are
     // intercepted and dispatched to `callEndpoint` automatically.
     return new Proxy(this, {
-      get(target, prop: string) {
+      get(target: FreemiusClient, prop: keyof FreemiusClient) {
         // If the property exists on the class, return it as-is.
         if (prop in target) {
-          const value = (target as any)[prop];
+          const value = target[prop];
           return typeof value === "function" ? value.bind(target) : value;
         }
 
@@ -161,7 +161,9 @@ export class FreemiusClient {
 
   // ─── Auth Header Builder ─────────────────────────────────────────────────────
 
-  private buildOptions(options: Record<string, unknown> = {}): Record<string, unknown> {
+  private buildOptions(
+    options: Record<string, unknown> = {},
+  ): Record<string, unknown> {
     return {
       ...options,
       headers: {

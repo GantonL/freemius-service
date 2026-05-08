@@ -13,15 +13,15 @@ import type {
   SubscriptionsResult,
   SubscriptionStatus,
 } from "../../types.ts";
-import {
-  FreemiusClient,
-  type FreemiusClientInterface,
-} from "./freemius.client.ts";
 import { HttpClient } from "../../utils/http.util.ts";
 import {
   buildPaginationOptions,
   Pagination,
 } from "../../utils/pagination.util.ts";
+import {
+  FreemiusClient,
+  type FreemiusClientInterface,
+} from "./freemius.client.ts";
 
 /**
  * Core Freemius service.
@@ -99,10 +99,10 @@ export class FreemiusService {
         activated: license.activated as number,
         message: "License is valid.",
       };
-    } catch (err: any) {
+    } catch (err) {
       console.error(
         "[FreemiusService] validateLicense error:",
-        err.message || err,
+        (err as Error).message || err,
       );
       return {
         valid: false,
@@ -140,10 +140,10 @@ export class FreemiusService {
       return {
         subscriptions: mappedSubscriptions,
       };
-    } catch (err: any) {
+    } catch (err) {
       console.error(
         "[FreemiusService] getSubscriptions error:",
-        err.message || err,
+        (err as Error).message || err,
       );
       return { subscriptions: [] };
     }
@@ -173,11 +173,10 @@ export class FreemiusService {
       );
 
       return this.buildSubscriptionResult(subRes, planMap);
-    } catch (err: any) {
-      if (err.status === 404) return null;
+    } catch (err) {
       console.error(
         "[FreemiusService] getSubscriptionById error:",
-        err.message || err,
+        (err as Error).message || err,
       );
       return null;
     }
@@ -203,10 +202,10 @@ export class FreemiusService {
       );
 
       return { payments: mappedPayments };
-    } catch (err: any) {
+    } catch (err) {
       console.error(
         "[FreemiusService] getPayments error:",
-        err?.message || err,
+        (err as Error).message || err,
       );
       return { payments: [] };
     }
@@ -226,11 +225,10 @@ export class FreemiusService {
 
       if (!payment) return null;
       return this.buildPaymentResult(payment);
-    } catch (err: any) {
-      if (err.status === 404) return null;
+    } catch (err) {
       console.error(
         "[FreemiusService] getPaymentById error:",
-        err.message || err,
+        (err as Error).message || err,
       );
       return null;
     }
@@ -247,11 +245,10 @@ export class FreemiusService {
         productId: pId,
         paymentId,
       }) as ArrayBuffer;
-    } catch (err: any) {
-      if (err.status === 404) return null;
+    } catch (err) {
       console.error(
         "[FreemiusService] getInvoicePdf error:",
-        err.message || err,
+        (err as Error).message || err,
       );
       return null;
     }
@@ -268,11 +265,10 @@ export class FreemiusService {
         productId: pId,
         eventId,
       }) as ArrayBuffer;
-    } catch (err: any) {
-      if (err.status === 404) return null;
+    } catch (err) {
       console.error(
         "[FreemiusService] getEventById error:",
-        err.message || err,
+        (err as Error).message || err,
       );
       return null;
     }
@@ -297,10 +293,10 @@ export class FreemiusService {
         headers,
         body: JSON.stringify(event),
       });
-    } catch (err: any) {
+    } catch (err) {
       console.warn(
         `[FreemiusService] Forward to ${forwardUrl} failed:`,
-        err.status || err.message || err,
+        (err as Error).message || err,
       );
     }
   }
