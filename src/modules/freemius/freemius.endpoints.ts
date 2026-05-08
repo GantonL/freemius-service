@@ -54,6 +54,12 @@ export const freemiusEndpoints = {
     path: "/products/:productId/payments/:paymentId/invoice.pdf",
     responseType: "arrayBuffer" as const,
   },
+
+  // ─── Events ──────────────────────────────────────────────────────────────
+  getEvent: {
+    method: "GET",
+    path: "/products/:productId/events/:eventId.json",
+  },
 } as const satisfies Record<string, EndpointConfig>;
 
 // ─── Supporting types ─────────────────────────────────────────────────────────

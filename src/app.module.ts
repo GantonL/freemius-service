@@ -4,6 +4,7 @@ import { WebhookModule } from "./modules/webhooks/webhook.module.ts";
 import { LicenseModule } from "./modules/licenses/license.module.ts";
 import { SubscriptionModule } from "./modules/subscriptions/subscription.module.ts";
 import { InvoiceModule } from "./modules/invoices/invoice.module.ts";
+import { EventsModule } from "./modules/events/events.module.ts";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { InvoiceModule } from "./modules/invoices/invoice.module.ts";
     LicenseModule,
     SubscriptionModule,
     InvoiceModule,
+    EventsModule,
   ],
 })
 export class AppModule {}

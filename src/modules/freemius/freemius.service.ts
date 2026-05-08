@@ -257,6 +257,27 @@ export class FreemiusService {
     }
   }
 
+  async getEventById(
+    eventId: string | number,
+    productId?: string,
+  ): Promise<ArrayBuffer | null> {
+    try {
+      const pId = this.getProductId(productId);
+
+      return await this.client.getEvent({
+        productId: pId,
+        eventId,
+      }) as ArrayBuffer;
+    } catch (err: any) {
+      if (err.status === 404) return null;
+      console.error(
+        "[FreemiusService] getEventById error:",
+        err.message || err,
+      );
+      return null;
+    }
+  }
+
   // ─── Webhook Forwarding ───────────────────────────────────────────────────────
 
   async forwardEvent(event: FreemiusWebhookEvent): Promise<void> {
