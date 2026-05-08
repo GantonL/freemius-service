@@ -2,7 +2,9 @@
   "tasks": {
     "dev": "deno run --watch --inspect --allow-net --allow-env --env --allow-read src/main.ts",
     "start": "deno run --allow-net --allow-env --allow-read src/main.ts",
-    "test": "deno test --allow-net --allow-env --allow-read"
+    "test": "deno test --allow-net --allow-env --allow-read",
+    "schema:generate": "deno -A npm:drizzle-kit generate",
+    "schema:migrate": "deno -A npm:drizzle-kit migrate"
   },
   "compilerOptions": {
     "experimentalDecorators": true,

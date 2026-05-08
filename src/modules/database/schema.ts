@@ -1,14 +1,21 @@
-import { pgTable, serial, integer, timestamp, boolean, varchar } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  pgTable,
+  serial,
+  timestamp,
+  varchar,
+} from "drizzle-orm/pg-core";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+export const users = pgTable("user", {
+  id: varchar("id", { length: 255 }).primaryKey(),
   name: varchar("name", { length: 255 }),
   email: varchar("email", { length: 255 }).unique().notNull(),
 });
 
 export const userFsEntitlements = pgTable("user_fs_entitlements", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id")
+  userId: varchar("user_id", { length: 255 })
     .notNull()
     .references(() => users.id),
   fsLicenseId: varchar("fs_license_id", { length: 255 }).unique().notNull(),

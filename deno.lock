@@ -11,6 +11,7 @@
     "jsr:@std/fmt@0.223.0": "0.223.0",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "npm:awesome-phonenumber@7.1.0": "7.1.0",
+    "npm:drizzle-kit@*": "0.21.4",
     "npm:drizzle-kit@~0.21.4": "0.21.4",
     "npm:drizzle-orm@~0.30.10": "0.30.10_@electric-sql+pglite@0.2.17_postgres@3.4.9",
     "npm:postgres@^3.4.4": "3.4.9"

@@ -31,7 +31,7 @@ export class WebhookController {
   @Post("freemius")
   async handleFreemiusWebhook(@Context() ctx: ExecutionContext) {
     const event = ctx.get(FREEMIUS_EVENT_KEY) as FreemiusWebhookEvent;
-    const userId = ctx.get(WEBHOOK_USER_ID_KEY) as number;
+    const userId = ctx.get(WEBHOOK_USER_ID_KEY) as string;
 
     const { type, objects } = event;
     const { user, subscription, license, plan } = objects || {};
