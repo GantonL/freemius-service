@@ -106,6 +106,7 @@ export type FreemiusWebhookType =
   | (string & Record<never, never>); // allow unknown types
 
 export interface FreemiusWebhookEvent {
+  id: string;
   /** The event type, e.g. "subscription.activated" */
   type: FreemiusWebhookType;
   /** Plugin / product ID */
