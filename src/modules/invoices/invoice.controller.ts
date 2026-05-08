@@ -5,11 +5,14 @@ import {
   NotFoundException,
   Param,
   Query,
+  UseGuard,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
 import { buildPaginationOptions } from "../../utils/pagination.util.ts";
+import { InternalNetworkRequestGuard } from "../../guards/internal-network-request.guard.ts";
 
 @Controller("invoices")
+@UseGuard(InternalNetworkRequestGuard)
 export class InvoiceController {
   constructor(private readonly freemiusService: FreemiusService) {}
 

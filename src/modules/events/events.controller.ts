@@ -1,5 +1,13 @@
-import { Controller, Get, NotFoundException, Param, Query } from "@danet/core";
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuard,
+} from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
+import { InternalNetworkRequestGuard } from "../../guards/internal-network-request.guard.ts";
 
 /**
  * Events status endpoints.
@@ -10,6 +18,7 @@ import { FreemiusService } from "../freemius/freemius.service.ts";
  * unless overridden with the `product_id` query param.
  */
 @Controller("events")
+@UseGuard(InternalNetworkRequestGuard)
 export class EventsController {
   constructor(private readonly freemiusService: FreemiusService) {}
 

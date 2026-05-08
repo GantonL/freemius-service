@@ -1,7 +1,15 @@
-import { BadRequestException, Controller, Get, Query } from "@danet/core";
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  UseGuard,
+} from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
+import { InternalNetworkRequestGuard } from "../../guards/internal-network-request.guard.ts";
 
 @Controller("licenses")
+@UseGuard(InternalNetworkRequestGuard)
 export class LicenseController {
   constructor(private readonly freemiusService: FreemiusService) {}
 

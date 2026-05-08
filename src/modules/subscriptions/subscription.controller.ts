@@ -5,8 +5,10 @@ import {
   NotFoundException,
   Param,
   Query,
+  UseGuard,
 } from "@danet/core";
 import { FreemiusService } from "../freemius/freemius.service.ts";
+import { InternalNetworkRequestGuard } from "../../guards/internal-network-request.guard.ts";
 
 /**
  * Subscription status endpoints.
@@ -19,6 +21,7 @@ import { FreemiusService } from "../freemius/freemius.service.ts";
  * unless overridden with the `product_id` query param.
  */
 @Controller("subscriptions")
+@UseGuard(InternalNetworkRequestGuard)
 export class SubscriptionController {
   constructor(private readonly freemiusService: FreemiusService) {}
 
