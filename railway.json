@@ -5,7 +5,8 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "deno run --allow-net --allow-env --allow-read src/main.ts",
+    "preDeployCommand": "deno run schema:migrate",
+    "startCommand": "deno task start",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
