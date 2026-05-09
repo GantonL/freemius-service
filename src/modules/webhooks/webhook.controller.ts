@@ -52,6 +52,10 @@ export class WebhookController {
       case "license.activated":
       case "license.deactivated":
       case "license.expired":
+      case "license.extended":
+      case "license.shortened":
+      case "license.cancelled":
+      case "license.plan.changed":
         logEvent("🔄 License", {
           type,
           user: user!,
