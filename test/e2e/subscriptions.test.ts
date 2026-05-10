@@ -24,10 +24,10 @@ Deno.test("Subscriptions Suite", async (t) => {
         plans: [{ id: 1, name: "Pro Plan" }],
       }), { status: 200 }));
 
-    const { status, body } = await ctx.api.subscriptions.list({ user_id: "user123" });
+    const { status, body } = await ctx.api.subscriptions.list({ user_email: "user@example.com" });
 
     assertEquals(status, 200);
-    assertEquals(body.total, 1);
+    assertEquals(body.subscriptions.length, 1);
     assertEquals(body.subscriptions[0].id, 100);
     assertEquals(body.subscriptions[0].plan_name, "Pro Plan");
     assertEquals(body.subscriptions[0].status, "active");

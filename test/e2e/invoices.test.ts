@@ -14,7 +14,7 @@ Deno.test("Invoices Suite", async (t) => {
     const { status, body } = await ctx.api.invoices.list({ user_id: "user1" });
 
     assertEquals(status, 200);
-    assertEquals(body.total, 1);
+    assertEquals(body.payments.length, 1);
   });
 
   await t.step("should fetch invoice pdf", async () => {
