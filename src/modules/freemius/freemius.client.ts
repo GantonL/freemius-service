@@ -96,7 +96,7 @@ export class FreemiusClient {
         : {},
     );
 
-    return this.http.get<unknown>(url, options);
+    return this.http[endpoint.method]<unknown>(url, options);
   }
 
   // ─── Context Validation ─────────────────────────────────────────────────────

@@ -44,19 +44,38 @@ export class HttpClient {
     return (await response.json()) as unknown as T;
   }
 
-  async get<T>(url: string, options?: Omit<HttpRequestOptions, "method">): Promise<T> {
+  async GET<T>(
+    url: string,
+    options?: Omit<HttpRequestOptions, "method">,
+  ): Promise<T> {
     return await this.request<T>(url, { ...options, method: "GET" });
   }
 
-  async post<T>(url: string, options?: Omit<HttpRequestOptions, "method">): Promise<T> {
+  async POST<T>(
+    url: string,
+    options?: Omit<HttpRequestOptions, "method">,
+  ): Promise<T> {
     return await this.request<T>(url, { ...options, method: "POST" });
   }
 
-  async put<T>(url: string, options?: Omit<HttpRequestOptions, "method">): Promise<T> {
+  async PUT<T>(
+    url: string,
+    options?: Omit<HttpRequestOptions, "method">,
+  ): Promise<T> {
     return await this.request<T>(url, { ...options, method: "PUT" });
   }
 
-  async delete<T>(url: string, options?: Omit<HttpRequestOptions, "method">): Promise<T> {
+  async DELETE<T>(
+    url: string,
+    options?: Omit<HttpRequestOptions, "method">,
+  ): Promise<T> {
     return await this.request<T>(url, { ...options, method: "DELETE" });
+  }
+
+  async PATCH<T>(
+    url: string,
+    options?: Omit<HttpRequestOptions, "method">,
+  ): Promise<T> {
+    return await this.request<T>(url, { ...options, method: "PATCH" });
   }
 }

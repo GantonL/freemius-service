@@ -289,7 +289,7 @@ export class FreemiusService {
         headers["x-webhook-secret"] = forwardSecret;
       }
 
-      await this.http.post(forwardUrl, {
+      await this.http.POST(forwardUrl, {
         headers,
         body: JSON.stringify(event),
       });
