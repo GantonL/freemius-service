@@ -1,4 +1,4 @@
-import { Injectable } from "@danet/core";
+import { BadRequestException, Injectable } from "@danet/core";
 import { config } from "../../config.ts";
 import type {
   FreemiusLicense,
@@ -54,7 +54,9 @@ export class FreemiusService {
     rawBody: string,
     signatureHeader: string | null,
   ): FreemiusWebhookEvent | null {
-    return this.client.verifyWebhookSignature(rawBody, signatureHeader);
+    return this.client.verifySignature(rawBody, signatureHeader) as
+      | FreemiusWebhookEvent
+      | null;
   }
 
   // ─── License Validation ──────────────────────────────────────────────────────
@@ -252,6 +254,26 @@ export class FreemiusService {
       );
       return null;
     }
+  }
+
+  async validateCheckoutCompleted(url: string) {
+    let valid = false;
+    const urlSplitByParams = url.split("&");
+    const signature = urlSplitByParams.pop();
+    if (!signature || signature.length === 0) {
+      throw new BadRequestException();
+    }
+    const urlWithoutSignature = urlSplitByParams.join("&");
+    const verifiedUrl = this.client.verifySignature(
+      urlWithoutSignature,
+      signature!,
+      { rawDataType: "string" },
+    );
+    valid = verifiedUrl === urlWithoutSignature;
+    if (!valid) {
+      throw new BadRequestException();
+    }
+    return valid;
   }
 
   async getEventById(

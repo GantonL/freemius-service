@@ -114,16 +114,19 @@ export class FreemiusClient {
     }
   }
 
-  // ─── Webhook Signature Verification ─────────────────────────────────────────
+  // ─── Signature Verification ─────────────────────────────────────────
 
   /**
    * Validates and parses an incoming webhook payload using Node's crypto for
    * HMAC-SHA256 signature verification.
    */
-  verifyWebhookSignature(
-    rawBody: string,
+  verifySignature(
+    rawData: string,
     signature: string | null,
-  ): FreemiusWebhookEvent | null {
+    options?: {
+      rawDataType?: "string" | "object";
+    },
+  ): FreemiusWebhookEvent | string | null {
     if (!signature) {
       console.error("[FreemiusClient] Missing signature header.");
       return null;
@@ -133,7 +136,7 @@ export class FreemiusClient {
 
     const hash = crypto
       .createHmac("sha256", secretKey)
-      .update(rawBody)
+      .update(rawData)
       .digest("hex");
 
     let isValid = false;
@@ -147,16 +150,27 @@ export class FreemiusClient {
     }
 
     if (!isValid) {
-      console.error("[FreemiusClient] Webhook signature validation failed.");
+      console.error("[FreemiusClient] signature validation failed.");
       return null;
     }
 
-    try {
-      return JSON.parse(rawBody) as FreemiusWebhookEvent;
-    } catch (err) {
-      console.error("[FreemiusClient] Webhook JSON parse error:", err);
-      return null;
+    const rawDataType = options?.rawDataType ?? "object";
+
+    if (rawDataType === "object") {
+      try {
+        return JSON.parse(rawData) as FreemiusWebhookEvent;
+      } catch (err) {
+        console.error("[FreemiusClient] JSON parse error:", err);
+        return null;
+      }
     }
+
+    if (rawDataType === "string") {
+      return rawData;
+    }
+
+    console.error("[FreemiusClient] raw data type mismatch");
+    return null;
   }
 
   // ─── Auth Header Builder ─────────────────────────────────────────────────────
