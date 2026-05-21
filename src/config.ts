@@ -19,7 +19,7 @@ function optional(key: string, fallback = ""): string {
 }
 
 export const config = {
-  port: parseInt(optional("PORT", "8000"), 10),
+  port: parseInt(optional("PORT", "8080"), 10),
 
   freemius: {
     storeId: getRequiredEnvVar("FREEMIUS_STORE_ID"),

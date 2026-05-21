@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -69,6 +70,19 @@ export class SubscriptionController {
       error.message = `Subscription ${id} not found.`;
       throw error;
     }
+
+    return result;
+  }
+
+  @Delete(":id")
+  async cancelById(
+    @Param("id") id: string,
+    @Query("product_id") productId: string,
+  ) {
+    const result = await this.freemiusService.cancelSubscriptionById(
+      id,
+      productId || undefined,
+    );
 
     return result;
   }

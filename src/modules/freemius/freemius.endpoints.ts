@@ -39,6 +39,10 @@ export const freemiusEndpoints = {
     method: "GET",
     path: "/products/:productId/subscriptions/:subscriptionId.json",
   },
+  cancelSubscription: {
+    method: "DELETE",
+    path: "/products/:productId/subscriptions/:subscriptionId.json",
+  },
 
   // ─── Payments ──────────────────────────────────────────────────────────────
   getPayments: {

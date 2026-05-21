@@ -184,6 +184,27 @@ export class FreemiusService {
     }
   }
 
+  async cancelSubscriptionById(
+    subscriptionId: string | number,
+    productId?: string,
+  ): Promise<SubscriptionResult | null> {
+    const pId = this.getProductId(productId);
+    try {
+      const cancelRes = await this.client.cancelSubscription({
+        productId: pId,
+        subscriptionId,
+      });
+      if (!cancelRes) return null;
+      return cancelRes as SubscriptionResult;
+    } catch (err) {
+      console.error(
+        "[FreemiusService] cancelSubscriptionById error:",
+        (err as Error).message || err,
+      );
+      return null;
+    }
+  }
+
   // ─── Payment Queries ─────────────────────────────────────────────────────────
 
   async getPayments(
