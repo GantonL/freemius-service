@@ -45,7 +45,7 @@ export interface FreemiusSubscription {
   billing_cycle: number; // 1=monthly, 12=annual, 0=lifetime
   amount_per_cycle: number;
   currency: string;
-  is_cancelled: boolean;
+  canceled_at: string | null;
   next_payment: string | null; // ISO 8601
 }
 
@@ -155,7 +155,7 @@ export interface SubscriptionResult {
   amount_per_cycle: number;
   currency: string;
   status: SubscriptionStatus;
-  is_cancelled: boolean;
+  cancelled_at: string | null;
   next_payment: string | null;
   user?: FreemiusUser;
 }

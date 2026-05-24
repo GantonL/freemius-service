@@ -280,7 +280,7 @@ export class FreemiusService {
   async validateCheckoutCompleted(url: string) {
     let valid = false;
     const urlSplitByParams = url.split("&");
-    const signature = urlSplitByParams.pop();
+    const signature = urlSplitByParams.pop()?.split("=")?.[1];
     if (!signature || signature.length === 0) {
       throw new BadRequestException();
     }
@@ -347,7 +347,7 @@ export class FreemiusService {
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
   private deriveStatus(sub: FreemiusSubscription): SubscriptionStatus {
-    if (sub.is_cancelled) return "cancelled";
+    if (sub.canceled_at) return "cancelled";
     if (sub.billing_cycle !== 0 && sub.next_payment) {
       const next = new Date(sub.next_payment);
       if (next < new Date()) return "past_due";
@@ -377,7 +377,7 @@ export class FreemiusService {
       amount_per_cycle: s.amount_per_cycle,
       currency: s.currency,
       status: this.deriveStatus(s),
-      is_cancelled: s.is_cancelled,
+      cancelled_at: s.canceled_at,
       next_payment: s.next_payment,
     };
   }
