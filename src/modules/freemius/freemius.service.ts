@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable } from "@danet/core";
 import { config } from "../../config.ts";
-import type {
+import {
   FreemiusLicense,
   FreemiusPayment,
   FreemiusPlan,
   FreemiusSubscription,
+  FreemiusSupportedCheckoutLanguages,
   FreemiusWebhookEvent,
   LicenseValidationResult,
   PaymentResult,
@@ -295,6 +296,33 @@ export class FreemiusService {
       throw new BadRequestException();
     }
     return valid;
+  }
+
+  async getCheckoutLink(parameters: {
+    planId: string;
+    userEmail: string;
+    productId?: string;
+    readonlyUser?: boolean;
+    environment?: string;
+    language?: FreemiusSupportedCheckoutLanguages;
+  }) {
+    const pId = this.getProductId(parameters.productId);
+    const baseCheckoutUrl =
+      `https://checkout.freemius.com/product/${pId}/plan/${parameters.planId}`;
+    const queryParams = new URLSearchParams({
+      user_email: parameters.userEmail,
+      readonly_user: String(parameters.readonlyUser) ?? "true",
+    });
+    if (parameters.environment === "local") {
+      queryParams.append("sandbox", "true");
+    }
+    const supportedLanguages = [FreemiusSupportedCheckoutLanguages.Hebrew];
+    if (
+      parameters.language && supportedLanguages.includes(parameters.language)
+    ) {
+      queryParams.append("language", parameters.language);
+    }
+    return `${baseCheckoutUrl}?${queryParams.toString()}`;
   }
 
   async getEventById(

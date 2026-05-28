@@ -126,6 +126,10 @@ export interface FreemiusWebhookEvent {
   signature?: string;
 }
 
+export enum FreemiusSupportedCheckoutLanguages {
+  Hebrew = "he",
+}
+
 // ─── Service response types ───────────────────────────────────────────────────
 
 export interface LicenseValidationResult {
