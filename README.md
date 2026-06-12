@@ -2,7 +2,7 @@
 
 A standalone payments microservice built with **Deno** and **Danet**
 (NestJS-like framework) that handles everything Freemius: webhook processing,
-license validation, and subscription lifecycle events.
+license validation, subscription lifecycle events, invoices, and checkout.
 
 Deploy it once on Railway and reuse it across all your projects.
 
@@ -12,14 +12,17 @@ Deploy it once on Railway and reuse it across all your projects.
 
 ## Features
 
-- ✅ **License validation** — validate any Freemius license key via REST API
-- ✅ **Webhook processing** — HMAC-SHA256 signature verification + event routing
-- ✅ **Subscription lifecycle** — handles activated, cancelled, expired, renewed
-  events
-- ✅ **Event forwarding** — optionally forward verified events to your app
-- ✅ **Health check** — `/health` endpoint for Railway / uptime monitoring
-- ✅ **Railway ready** — one-click deploy with `railway.json` + `Dockerfile`
-- ✅ **Stateless** — no database required, easy to scale
+- **License validation** — validate any Freemius license key via REST API
+- **Webhook processing** — HMAC-SHA256 signature verification + event routing
+- **Subscription lifecycle** — handles activated, cancelled, expired, renewed events
+- **Subscription management** — list, get, and cancel subscriptions
+- **Payment querying** — list payments by user or license
+- **Invoice proxying** — fetch invoice PDFs from Freemius
+- **Checkout** — generate checkout links and validate checkout completion (internal)
+- **Event forwarding** — forward verified events to your app with a shared secret
+- **DB persistence** — optional entitlements persistence via Drizzle ORM + PostgreSQL
+- **Health check** — `/health` endpoint for Railway / uptime monitoring
+- **Railway ready** — one-click deploy with `railway.json` + `Dockerfile`
 
 ---
 
@@ -44,171 +47,22 @@ cp .env.example .env
 deno task dev
 ```
 
-The server starts at `http://localhost:8000`.
+The server starts at `http://localhost:8080`.
 
 ---
 
 ## Environment Variables
 
-| Variable                  | Required | Description                                                  |
-| ------------------------- | -------- | ------------------------------------------------------------ |
-| `PORT`                    | No       | Server port (default: `8000`)                                |
-| `FREEMIUS_STORE_ID`       | Yes      | Your Freemius product/plugin ID                              |
-| `FREEMIUS_PUBLIC_KEY`     | Yes      | Freemius public key (Developer Dashboard → Keys)             |
-| `FREEMIUS_SECRET_KEY`     | Yes      | Freemius secret key                                          |
-| `FREEMIUS_WEBHOOK_SECRET` | Yes      | Webhook signing secret (Dashboard → Developer → Webhooks)    |
-| `WEBHOOK_FORWARD_URL`     | No       | Your app's URL to forward verified events to                 |
-| `WEBHOOK_FORWARD_SECRET`  | No       | Secret included in `x-webhook-secret` header when forwarding |
-
----
-
-## API Reference
-
-### `GET /health`
-
-Returns service status.
-
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-02-27T14:00:00.000Z",
-  "version": "1.0.0",
-  "service": "freemius-service"
-}
-```
-
----
-
-### `GET /licenses/validate`
-
-Validates a Freemius license key.
-
-**Query params:**
-
-- `key` (required) — the license secret key
-- `product_id` (optional) — Freemius plugin ID, falls back to
-  `FREEMIUS_STORE_ID`
-
-**Example:**
-
-```bash
-curl "https://your-service.railway.app/licenses/validate?key=YOUR_LICENSE_KEY"
-```
-
-**Response (valid):**
-
-```json
-{
-  "valid": true,
-  "plan": "5",
-  "expiration": "2027-02-27T00:00:00Z",
-  "quota": 5,
-  "activated": 1,
-  "message": "License is valid."
-}
-```
-
-**Response (invalid):**
-
-```json
-{
-  "valid": false,
-  "message": "License has expired."
-}
-```
-
----
-
-### `POST /webhooks/freemius`
-
-Receives Freemius webhook events. Must include the `X-Freemius-Signature`
-header.
-
-Point this URL in your Freemius Developer Dashboard under **Developer →
-Webhooks**.
-
-**Handled event types:**
-
-| Event                               | Description                    |
-| ----------------------------------- | ------------------------------ |
-| `subscription.activated`            | New subscription created       |
-| `subscription.cancelled`            | Subscription cancelled by user |
-| `subscription.expired`              | Subscription period ended      |
-| `subscription.charged_successfully` | Renewal payment succeeded      |
-| `subscription.charged_failed`       | Renewal payment failed         |
-| `license.activated`                 | License activated on a site    |
-| `license.deactivated`               | License deactivated            |
-| `license.expired`                   | License expired                |
-
----
-
-### `GET /subscriptions`
-
-Fetches all subscriptions for a given user or license key. Enriches each result
-with a computed `status` field and a human-readable `billing_cycle_label`.
-
-**Query params (at least one required):**
-
-- `user_id` — Freemius user ID
-- `license_key` — license secret key
-- `product_id` (optional) — falls back to `FREEMIUS_STORE_ID`
-
-**Example:**
-
-```bash
-curl "https://your-service.railway.app/subscriptions?user_id=12345"
-# or
-curl "https://your-service.railway.app/subscriptions?license_key=YOUR_LICENSE_KEY"
-```
-
-**Response:**
-
-```json
-{
-  "subscriptions": [
-    {
-      "id": 9876,
-      "plan_id": 5,
-      "plan_name": "Business",
-      "license_id": 1234,
-      "billing_cycle": 12,
-      "billing_cycle_label": "annual",
-      "amount_per_cycle": 99.00,
-      "currency": "USD",
-      "status": "active",
-      "is_cancelled": false,
-      "next_payment": "2027-03-01T00:00:00Z"
-    }
-  ],
-  "total": 1
-}
-```
-
-**Possible `status` values:** `active` | `cancelled` | `past_due` | `expired` |
-`trialing` | `unknown`
-
----
-
-### `GET /subscriptions/:id`
-
-Fetches a single subscription by its Freemius subscription ID.
-
-**Path params:**
-
-- `:id` — the Freemius subscription ID
-
-**Query params:**
-
-- `product_id` (optional) — falls back to `FREEMIUS_STORE_ID`
-
-**Example:**
-
-```bash
-curl "https://your-service.railway.app/subscriptions/9876"
-```
-
-**Response:** same shape as a single item from the list above, or `404` if not
-found.
+| Variable                 | Required | Description                                                   |
+| ------------------------ | -------- | ------------------------------------------------------------- |
+| `PORT`                   | No       | Server port (default: `8080`)                                 |
+| `FREEMIUS_STORE_ID`      | Yes      | Your Freemius store ID                                        |
+| `FREEMIUS_PRODUCT_ID`    | Yes      | Your Freemius product/plugin ID                               |
+| `FREEMIUS_API_TOKEN`     | Yes      | Bearer token for the Freemius API                             |
+| `FREEMIUS_PRODUCT_SECRET`| Yes      | HMAC secret for webhook & checkout signature verification     |
+| `DATABASE_URL`           | No       | PostgreSQL connection string — enables entitlement persistence|
+| `WEBHOOK_FORWARD_URL`    | No       | Your app's URL to forward verified events to                  |
+| `WEBHOOK_FORWARD_SECRET` | No       | Secret included in `x-webhook-secret` header when forwarding |
 
 ---
 
@@ -293,7 +147,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 ```bash
 docker build -t freemius-service .
-docker run -p 8000:8000 --env-file .env freemius-service
+docker run -p 8080:8080 --env-file .env freemius-service
 ```
 
 ---
@@ -307,22 +161,41 @@ freemius-service/
 │   ├── app.module.ts                    # Root module
 │   ├── config.ts                        # Typed env config
 │   ├── types.ts                         # Freemius TypeScript types
+│   ├── guards/
+│   │   └── internal-network-request.guard.ts  # Internal-only endpoint guard
+│   ├── utils/
+│   │   ├── http.util.ts                 # Generic fetch wrapper
+│   │   └── pagination.util.ts           # Pagination helper
 │   └── modules/
 │       ├── freemius/
-│       │   ├── freemius.service.ts      # API client + HMAC verification
-│       │   └── freemius.module.ts
+│       │   ├── freemius.endpoints.ts    # Declarative API endpoint map
+│       │   ├── freemius.client.ts       # Proxy-based typed API client
+│       │   └── freemius.service.ts      # Business logic
 │       ├── health/
-│       │   ├── health.controller.ts     # GET /health
-│       │   └── health.module.ts
+│       │   └── health.controller.ts     # GET /health
 │       ├── webhooks/
-│       │   ├── webhook.controller.ts    # POST /webhooks/freemius
-│       │   └── webhook.module.ts
+│       │   ├── guards/freemius-event-webhook.guard.ts
+│       │   └── webhook.controller.ts    # POST /webhooks/freemius
 │       ├── licenses/
-│       │   ├── license.controller.ts   # GET /licenses/validate
-│       │   └── license.module.ts
-│       └── subscriptions/
-│           ├── subscription.controller.ts  # GET /subscriptions, GET /subscriptions/:id
-│           └── subscription.module.ts
+│       │   └── license.controller.ts    # GET /licenses/validate
+│       ├── subscriptions/
+│       │   └── subscription.controller.ts  # GET|DELETE /subscriptions[/:id]
+│       ├── invoices/
+│       │   └── invoice.controller.ts    # GET /invoices/:id
+│       ├── checkout/
+│       │   └── checkout.controller.ts   # POST /checkout/validate, GET /checkout/link
+│       ├── events/
+│       │   └── events.controller.ts     # GET /events/:id
+│       ├── database/
+│       │   ├── schema.ts                # Drizzle schema: user + user_fs_entitlements
+│       │   ├── client.provider.ts       # PostgreSQL connection via Drizzle
+│       │   └── services/
+│       │       ├── abstract-crud.service.ts
+│       │       ├── entitlements.service.ts
+│       │       └── user.service.ts
+│       └── cache/
+│           └── cache.service.ts         # In-memory cache
+├── drizzle.config.ts
 ├── Dockerfile
 ├── railway.json
 ├── deno.json
