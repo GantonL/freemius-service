@@ -33,16 +33,32 @@ export class FreemiusEventWebhookGuard implements AuthGuard {
     context: ExecutionContext,
   ): Promise<boolean> {
     const event = context.get(FREEMIUS_EVENT_KEY) as FreemiusWebhookEvent;
-    if (!event || !event.objects?.user?.email) {
-      return false;
+    if (!event) return false;
+    let userEmail = event.objects?.user?.email;
+
+    if (!userEmail) {
+      const userId = this.service.extractUserIdFromEvent(event);
+      if (userId === null) {
+        console.error(
+          `[Guard] ❌ Unauthorized webhook: User ID was not provided in the event as expected.`,
+        );
+        return false;
+      }
+      const user = await this.service.getUserById(userId);
+      if (!user || user.id !== userId || !user.email) {
+        console.error(
+          `[Guard] ❌ Unauthorized webhook: Freemius User does not exist as an application user.`,
+        );
+        return false;
+      }
+      userEmail = user?.email;
     }
 
-    const email = event.objects.user.email;
-    const user = await this.userService.getOne(email);
+    const user = await this.userService.getOne(userEmail);
 
     if (!user) {
       console.warn(
-        `[Guard] ❌ Unauthorized webhook: User with email ${email} not found in database.`,
+        `[Guard] ❌ Unauthorized webhook: User with email ${userEmail} not found in database.`,
       );
       return false;
     }
