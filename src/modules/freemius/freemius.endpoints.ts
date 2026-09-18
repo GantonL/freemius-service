@@ -67,7 +67,7 @@ export const freemiusEndpoints = {
 
   getUser: {
     method: "GET",
-    path: "products/:productId/users/:userId.json",
+    path: "/products/:productId/users/:userId.json",
   },
 } as const satisfies Record<string, EndpointConfig>;
 

@@ -365,7 +365,7 @@ export class FreemiusService {
         productId: pId,
         userId,
       }) as FreemiusUser;
-      if (!!user) this.cache.set(key, user);
+      if (user) this.cache.set(key, user);
       return user;
     } catch (err) {
       console.error(
