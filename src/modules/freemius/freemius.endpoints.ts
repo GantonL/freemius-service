@@ -64,6 +64,11 @@ export const freemiusEndpoints = {
     method: "GET",
     path: "/products/:productId/events/:eventId.json",
   },
+
+  getUser: {
+    method: "GET",
+    path: "products/:productId/users/:userId.json",
+  },
 } as const satisfies Record<string, EndpointConfig>;
 
 // ─── Supporting types ─────────────────────────────────────────────────────────

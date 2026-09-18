@@ -122,6 +122,7 @@ export interface FreemiusWebhookEvent {
     license?: FreemiusLicense;
     plan?: FreemiusPlan;
   };
+  user_id: string | null;
   /** Raw signature header value for verification */
   signature?: string;
 }

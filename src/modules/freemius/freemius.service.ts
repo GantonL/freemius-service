@@ -6,6 +6,7 @@ import {
   FreemiusPlan,
   FreemiusSubscription,
   FreemiusSupportedCheckoutLanguages,
+  FreemiusUser,
   FreemiusWebhookEvent,
   LicenseValidationResult,
   PaymentResult,
@@ -23,6 +24,7 @@ import {
   FreemiusClient,
   type FreemiusClientInterface,
 } from "./freemius.client.ts";
+import { CacheService } from "../cache/cache.service.ts";
 
 /**
  * Core Freemius service.
@@ -34,7 +36,11 @@ import {
 export class FreemiusService {
   private readonly client: FreemiusClientInterface;
 
-  constructor(client: FreemiusClient, private readonly http: HttpClient) {
+  constructor(
+    client: FreemiusClient,
+    private readonly http: HttpClient,
+    private readonly cache: CacheService,
+  ) {
     // Cast to the full interface that includes Proxy-generated endpoint methods.
     this.client = client as FreemiusClientInterface;
   }
@@ -345,6 +351,31 @@ export class FreemiusService {
     }
   }
 
+  async getUserById(
+    userId: string | number,
+    productId?: string,
+  ): Promise<FreemiusUser | null> {
+    try {
+      const key = `user:id:${userId}`;
+      const cached = this.cache.get<FreemiusUser>(key);
+      if (cached !== undefined) return cached;
+
+      const pId = this.getProductId(productId);
+      const user = await this.client.getUser({
+        productId: pId,
+        userId,
+      }) as FreemiusUser;
+      if (!!user) this.cache.set(key, user);
+      return user;
+    } catch (err) {
+      console.error(
+        "[FreemiusService] getUserById error:",
+        (err as Error).message || err,
+      );
+      return null;
+    }
+  }
+
   // ─── Webhook Forwarding ───────────────────────────────────────────────────────
 
   async forwardEvent(event: FreemiusWebhookEvent): Promise<void> {
@@ -370,6 +401,16 @@ export class FreemiusService {
         (err as Error).message || err,
       );
     }
+  }
+
+  // --- Public Helpers -----------------------------------------------------------
+
+  extractUserIdFromEvent(event: FreemiusWebhookEvent): number | null {
+    const userId = event.user_id ??
+      event.objects?.user?.id ??
+      event.objects?.license?.user_id;
+    if (!userId) return null;
+    return Number(userId);
   }
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
