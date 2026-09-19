@@ -117,7 +117,10 @@ function logEvent(
     plan?: FreemiusPlan;
   },
 ) {
+  const userId = params?.user?.id ?? params?.license?.user_id ??
+    params?.subscription?.user_id;
+  const userEmail = params?.user?.email;
   console.log(
-    `[Webhook] ${prefix} ${params.type} — user: ${params.user?.email}`,
+    `[Webhook] ${prefix} ${params.type} — user: (email: ${userEmail}) ${userId}`,
   );
 }

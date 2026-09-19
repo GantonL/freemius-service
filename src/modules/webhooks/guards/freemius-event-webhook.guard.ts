@@ -45,7 +45,7 @@ export class FreemiusEventWebhookGuard implements AuthGuard {
         return false;
       }
       const user = await this.service.getUserById(userId);
-      if (!user || user.id !== userId || !user.email) {
+      if (!user || Number(user.id) !== userId || !user.email) {
         console.error(
           `[Guard] ❌ Unauthorized webhook: Freemius User does not exist as an application user.`,
         );

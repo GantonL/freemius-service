@@ -31,7 +31,7 @@ export class EntitlementsService
       fsUserId: String(license.user_id),
       type: license.type || null,
       expiration: license.expiration ? new Date(license.expiration) : null,
-      isCanceled: license.is_cancelled,
+      isCanceled: license.is_cancelled ?? false,
     };
   }
 
@@ -48,7 +48,7 @@ export class EntitlementsService
       fsUserId: String(license.user_id),
       type: license.type || null,
       expiration: license.expiration ? new Date(license.expiration) : null,
-      isCanceled: license.is_cancelled,
+      isCanceled: license.is_cancelled ?? false,
     };
   }
 
