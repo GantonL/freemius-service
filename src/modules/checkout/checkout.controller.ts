@@ -36,6 +36,7 @@ export class CheckoutController {
     @Query("readonlyUser") readonlyUser: boolean,
     @Query("environment") environment: string,
     @Query("language") language: FreemiusSupportedCheckoutLanguages,
+    @Query("licenseKey") licenseKey: string,
   ) {
     const parameters = {
       planId,
@@ -44,6 +45,7 @@ export class CheckoutController {
       readonlyUser,
       environment,
       language,
+      licenseKey
     };
     return this.freemiusService.getCheckoutLink(parameters);
   }
