@@ -311,6 +311,8 @@ export class FreemiusService {
     readonlyUser?: boolean;
     environment?: string;
     language?: FreemiusSupportedCheckoutLanguages;
+    licenseKey?: string; //for renewals
+    is_payment_method_update?: boolean;
   }) {
     const pId = this.getProductId(parameters.productId);
     const baseCheckoutUrl =
@@ -327,6 +329,9 @@ export class FreemiusService {
       parameters.language && supportedLanguages.includes(parameters.language)
     ) {
       queryParams.append("language", parameters.language);
+    }
+    if (parameters.licenseKey) {
+      queryParams.append("license_key", parameters.licenseKey);
     }
     return `${baseCheckoutUrl}?${queryParams.toString()}`;
   }
